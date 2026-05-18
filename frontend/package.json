@@ -9,6 +9,13 @@
     "preview": "vite preview",
     "test": "vitest run --config ./vitest.config.js --configLoader runner"
   },
+  "engines": {
+  "node": "20.x"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.53.3",
+    "@rollup/rollup-win32-x64-msvc": "^4.53.3"
+  },
   "dependencies": {
     "axios": "^1.7.9",
     "framer-motion": "^12.38.0",
