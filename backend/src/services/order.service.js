@@ -156,87 +156,126 @@ export class OrderService {
       throw new AppError("Your account does not have checkout permission.", 403);
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const cart = await tx.cart.findUnique({
-        where: { userId },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  category: true
-                }
+    const cartSnapshot = await prisma.cart.findUnique({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                category: true
               }
             }
           }
         }
-      });
-
-      if (!cart || cart.items.length === 0) {
-        throw new AppError("Cart is empty.", 400);
       }
+    });
 
-      const strategy = this.buildDeliveryStrategy(payload.deliveryType);
-      const delivery = new Delivery({
-        address: payload.address,
-        strategy
-      });
+    if (!cartSnapshot || cartSnapshot.items.length === 0) {
+      throw new AppError("Cart is empty.", 400, null, "VALIDATION_ERROR");
+    }
 
-      const geoResult = await geofencingService.validateLocation(
-        payload.latitude,
-        payload.longitude,
-        payload.accuracyMeters
+    const subtotal = cartSnapshot.items.reduce(
+      (total, item) => total + Number(item.product.price) * item.quantity,
+      0
+    );
+    const deliverySlotId = payload.deliverySlotId || null;
+    const geoLat = payload.latitude;
+    const geoLon = payload.longitude;
+
+    const geoResult = await geofencingService.validateLocation(
+      geoLat,
+      geoLon,
+      payload.accuracyMeters
+    );
+
+    if (!geoResult.isWithinRadius) {
+      throw new AppError(
+        geoResult.reason ||
+          `Your location is ${geoResult.displayDistanceKm}km away. We only deliver within ${geoResult.store.deliveryRadius}km.`,
+        400,
+        null,
+        "VALIDATION_ERROR"
       );
+    }
 
-      if (!geoResult.isWithinRadius) {
-        throw new AppError(
-          geoResult.reason ||
-            `Your location is ${geoResult.displayDistanceKm}km away. We only deliver within ${geoResult.store.deliveryRadius}km.`,
-          400
-        );
-      }
+    const deliveryQuote = await deliveryPricingService.quote({
+      latitude: geoLat,
+      longitude: geoLon,
+      accuracyMeters: payload.accuracyMeters,
+      deliveryType: payload.deliveryType,
+      deliverySlotId,
+      orderSubtotal: subtotal
+    });
 
-      const distanceKm = geoResult.distanceKm;
-      const geoLat = payload.latitude;
-      const geoLon = payload.longitude;
-
-      let deliverySlotId = null;
-      let selectedDeliverySlot = null;
-      if (payload.deliverySlotId) {
-        selectedDeliverySlot = await deliverySlotService.getSlotById(payload.deliverySlotId, tx);
-        await deliverySlotService.bookSlot(payload.deliverySlotId, payload.deliveryType, tx);
-        deliverySlotId = payload.deliverySlotId;
-      }
-
-      const subtotal = cart.items.reduce(
-        (total, item) => total + Number(item.product.price) * item.quantity,
-        0
+    if (!deliveryQuote.isWithinRadius) {
+      throw new AppError(
+        deliveryQuote.reason ||
+          `Your location is ${deliveryQuote.displayDistanceKm}km away. We only deliver within ${deliveryQuote.store.deliveryRadius}km.`,
+        400,
+        null,
+        "VALIDATION_ERROR"
       );
-      const deliveryQuote = await deliveryPricingService.quote({
-        latitude: geoLat,
-        longitude: geoLon,
-        accuracyMeters: payload.accuracyMeters,
-        deliveryType: payload.deliveryType,
-        deliverySlotId,
-        orderSubtotal: subtotal
-      });
+    }
 
-      if (!deliveryQuote.isWithinRadius) {
-        throw new AppError(
-          deliveryQuote.reason ||
-            `Your location is ${deliveryQuote.displayDistanceKm}km away. We only deliver within ${deliveryQuote.store.deliveryRadius}km.`,
-          400
+    if (deliveryQuote.scheduling && !deliveryQuote.scheduling.isEligible) {
+      throw new AppError(
+        deliveryQuote.scheduling.reason || "The selected delivery schedule is not available.",
+        400,
+        null,
+        "VALIDATION_ERROR"
+      );
+    }
+
+    const selectedDeliverySlot = deliverySlotId
+      ? await deliverySlotService.getSlotById(deliverySlotId)
+      : null;
+    const deliveryFee = deliveryQuote.deliveryFee;
+    const distanceKm = deliveryQuote.distanceKm || geoResult.distanceKm;
+    const strategy = this.buildDeliveryStrategy(payload.deliveryType);
+    const delivery = new Delivery({
+      address: payload.address,
+      strategy
+    });
+
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const cart = await tx.cart.findUnique({
+          where: { userId },
+          include: {
+            items: {
+              include: {
+                product: {
+                  include: {
+                    category: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        if (!cart || cart.items.length === 0) {
+          throw new AppError("Cart is empty.", 400, null, "VALIDATION_ERROR");
+        }
+
+        const transactionSubtotal = cart.items.reduce(
+          (total, item) => total + Number(item.product.price) * item.quantity,
+          0
         );
-      }
 
-      if (deliveryQuote.scheduling && !deliveryQuote.scheduling.isEligible) {
-        throw new AppError(
-          deliveryQuote.scheduling.reason || "The selected delivery schedule is not available.",
-          400
-        );
-      }
+        if (transactionSubtotal !== subtotal) {
+          throw new AppError(
+            "Your cart changed during checkout. Please review your cart and try again.",
+            409,
+            null,
+            "VALIDATION_ERROR"
+          );
+        }
 
-      const deliveryFee = deliveryQuote.deliveryFee;
+        if (deliverySlotId) {
+          await deliverySlotService.bookSlot(deliverySlotId, payload.deliveryType, tx);
+        }
 
       const orderEntity = new Order({
         userId,
@@ -257,7 +296,8 @@ export class OrderService {
           items: cart.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity
-          }))
+          })),
+          trackExpiry: false
         },
         tx
       );
@@ -324,30 +364,43 @@ export class OrderService {
       mappedOrder.deliveryFeeBreakdown = deliveryQuote.feeBreakdown;
       mappedOrder.deliveryScheduling = deliveryQuote.scheduling;
 
-      if (payload.paymentMethod === "GCASH") {
+      return mappedOrder;
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
+
+    if (payload.paymentMethod === "GCASH" && result.inventoryReservation) {
+      await inventoryService.trackReservationExpiry(result.inventoryReservation).catch(() => null);
+    }
+
+    if (payload.paymentMethod === "GCASH") {
+      try {
         const checkoutSession = await paymentService.createGcashCheckoutSession({
-          order: mappedOrder,
+          order: result,
           user,
           successUrl: env.checkoutSuccessUrl,
           cancelUrl: env.checkoutCancelUrl
         });
 
-        await tx.order.update({
-          where: { id: createdOrder.id },
+        await prisma.order.update({
+          where: { id: result.id },
           data: {
             paymentCheckoutId: checkoutSession.checkoutSessionId
           }
         });
 
-        return {
-          ...mappedOrder,
-          paymentCheckoutUrl: checkoutSession.checkoutUrl,
-          paymentCheckoutId: checkoutSession.checkoutSessionId
-        };
+        result.paymentCheckoutUrl = checkoutSession.checkoutUrl;
+        result.paymentCheckoutId = checkoutSession.checkoutSessionId;
+      } catch (error) {
+        await this.markPaymentFailed({ orderId: result.id }).catch(() => null);
+        throw new AppError(
+          "Payment could not be completed. Please check your GCash details or try another payment method.",
+          error.statusCode || 503,
+          { orderId: result.id },
+          "PAYMENT_FAILED"
+        );
       }
-
-      return mappedOrder;
-    });
+    }
 
     emitOrderChanged({
       orderId: result.id,

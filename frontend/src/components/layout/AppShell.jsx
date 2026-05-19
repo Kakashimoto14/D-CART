@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Bell, ChevronDown, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { adminApi } from "../../api/adminApi";
 import { useAuth } from "../../hooks/useAuth";
+import { getApiErrorMessage } from "../../utils/apiError";
 import { CustomerShell } from "./CustomerShell.jsx";
 import { adminNavigation, customerNavigation, routeTitles, staffNavigation } from "./navigation.js";
 
@@ -71,11 +73,73 @@ function AdminSidebar({ links, onNavigate }) {
 
 function AdminTopbar({ user, onOpenMenu, logout }) {
   const location = useLocation();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationError, setNotificationError] = useState("");
   const meta = routeTitles[location.pathname] || {
     eyebrow: "Workspace",
     title: "D'Cart",
     description: "Operational workspace"
   };
+  const isAdmin = user?.role === "ADMIN";
+
+  const quickActions = [
+    { label: "Add product", to: "/admin/products" },
+    { label: "Receive inventory", to: "/admin/inventory" },
+    { label: "View pending orders", to: "/admin/orders" },
+    { label: "View low stock", to: "/admin/inventory" },
+    { label: "Export sales report", to: "/admin/analytics" }
+  ];
+
+  useEffect(() => {
+    if (!isAdmin || searchTerm.trim().length < 2) {
+      setSearchResults(null);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        setSearchResults(await adminApi.search(searchTerm.trim()));
+      } catch (_error) {
+        setSearchResults(null);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [isAdmin, searchTerm]);
+
+  const handleOpenNotifications = async () => {
+    const nextOpen = !notificationsOpen;
+    setNotificationsOpen(nextOpen);
+    setQuickOpen(false);
+    setProfileOpen(false);
+
+    if (!nextOpen || !isAdmin) return;
+
+    try {
+      setNotificationError("");
+      const data = await adminApi.notifications();
+      setNotifications(data.events || []);
+    } catch (requestError) {
+      setNotificationError(getApiErrorMessage(requestError, "Unable to load notifications."));
+    }
+  };
+
+  const confirmLogout = () => {
+    if (window.confirm("Sign out of the admin workspace?")) {
+      logout();
+    }
+  };
+
+  const flatSearchResults = searchResults
+    ? Object.entries(searchResults).flatMap(([group, items]) =>
+        items.map((item) => ({ ...item, group }))
+      )
+    : [];
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/70 bg-[rgba(255,255,255,0.82)] backdrop-blur-xl">
@@ -99,23 +163,101 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
-              className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700 md:inline-flex"
+              onClick={() => {
+                setQuickOpen((value) => !value);
+                setNotificationsOpen(false);
+                setProfileOpen(false);
+              }}
+              className="relative hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700 md:inline-flex"
             >
               <Sparkles className="mr-2 h-4 w-4" />
               Quick action
             </button>
+            {quickOpen ? (
+              <div className="absolute right-24 top-20 z-30 w-64 rounded-[20px] border border-slate-100 bg-white p-2 shadow-xl">
+                {quickActions.map((action) => (
+                  <Link
+                    key={action.label}
+                    to={action.to}
+                    onClick={() => setQuickOpen(false)}
+                    className="block rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-brand-50 hover:text-brand-700"
+                  >
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
             <button
               type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-brand-200 hover:text-brand-700"
+              onClick={handleOpenNotifications}
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-brand-200 hover:text-brand-700"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
+              {notifications.length > 0 ? (
+                <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-rose-500" />
+              ) : null}
             </button>
-            <div className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm sm:block">
-              <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{user?.role}</p>
-            </div>
-            <button type="button" onClick={logout} className="btn-secondary px-3 py-3">
+            {notificationsOpen ? (
+              <div className="absolute right-16 top-20 z-30 max-h-[70vh] w-[min(92vw,420px)] overflow-y-auto rounded-[20px] border border-slate-100 bg-white p-3 shadow-xl">
+                <div className="flex items-center justify-between px-2 py-2">
+                  <p className="text-sm font-bold text-slate-900">Admin notifications</p>
+                  <Link to="/admin/notifications" onClick={() => setNotificationsOpen(false)} className="text-xs font-semibold text-brand-700">
+                    View all
+                  </Link>
+                </div>
+                {notificationError ? <p className="px-2 py-3 text-sm text-rose-600">{notificationError}</p> : null}
+                {notifications.slice(0, 8).map((item) => (
+                  <Link
+                    key={item.id}
+                    to={item.metadata?.orderId ? "/admin/orders" : item.metadata?.productId ? "/admin/inventory" : "/admin/notifications"}
+                    onClick={() => setNotificationsOpen(false)}
+                    className="block rounded-2xl px-4 py-3 hover:bg-slate-50"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <p className="mt-1 text-sm text-slate-500">{item.message}</p>
+                  </Link>
+                ))}
+                {!notificationError && notifications.length === 0 ? (
+                  <p className="px-2 py-5 text-sm text-slate-500">No admin notifications right now.</p>
+                ) : null}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setProfileOpen((value) => !value);
+                setQuickOpen(false);
+                setNotificationsOpen(false);
+              }}
+              className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm sm:flex"
+            >
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  {user?.role === "ADMIN" ? "Store Admin" : user?.role}
+                </p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            </button>
+            {profileOpen ? (
+              <div className="absolute right-16 top-20 z-30 w-72 rounded-[20px] border border-slate-100 bg-white p-3 shadow-xl">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">{user?.name}</p>
+                  <p className="mt-1 text-sm text-slate-500">{user?.email}</p>
+                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.22em] text-brand-700">
+                    {user?.role === "ADMIN" ? "Administrator" : user?.role}
+                  </p>
+                </div>
+                <Link to="/admin/settings" onClick={() => setProfileOpen(false)} className="mt-2 block rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-brand-50 hover:text-brand-700">
+                  Account settings
+                </Link>
+                <button type="button" onClick={confirmLogout} className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                  Sign out
+                </button>
+              </div>
+            ) : null}
+            <button type="button" onClick={confirmLogout} className="btn-secondary px-3 py-3">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
@@ -126,9 +268,29 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
           <label className="relative block w-full max-w-xl">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
               className="field pl-11"
               placeholder="Search workflows, products, orders, or records"
             />
+            {flatSearchResults.length > 0 ? (
+              <div className="absolute left-0 right-0 top-12 z-30 max-h-80 overflow-y-auto rounded-[20px] border border-slate-100 bg-white p-2 shadow-xl">
+                {flatSearchResults.map((item) => (
+                  <Link
+                    key={`${item.group}-${item.id}`}
+                    to={item.to}
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSearchResults(null);
+                    }}
+                    className="block rounded-2xl px-4 py-3 hover:bg-slate-50"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{item.group} - {item.detail}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </label>
         </div>
       </div>

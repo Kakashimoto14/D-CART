@@ -11,6 +11,10 @@ const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage.jsx").then((m
 const AdminOverviewPage = lazy(() => import("./pages/AdminOverviewPage.jsx").then((module) => ({ default: module.AdminOverviewPage })));
 const AdminPlaceholderPage = lazy(() => import("./pages/AdminPlaceholderPage.jsx").then((module) => ({ default: module.AdminPlaceholderPage })));
 const AdminProductsPage = lazy(() => import("./pages/AdminProductsPage.jsx").then((module) => ({ default: module.AdminProductsPage })));
+const AdminCustomersPage = lazy(() => import("./pages/AdminCustomersPage.jsx").then((module) => ({ default: module.AdminCustomersPage })));
+const AdminSalesAnalyticsPage = lazy(() => import("./pages/AdminSalesAnalyticsPage.jsx").then((module) => ({ default: module.AdminSalesAnalyticsPage })));
+const AdminSettingsPage = lazy(() => import("./pages/AdminSettingsPage.jsx").then((module) => ({ default: module.AdminSettingsPage })));
+const AdminSuppliersPage = lazy(() => import("./pages/AdminSuppliersPage.jsx").then((module) => ({ default: module.AdminSuppliersPage })));
 const AccountPage = lazy(() => import("./pages/AccountPage.jsx").then((module) => ({ default: module.AccountPage })));
 const CartPage = lazy(() => import("./pages/CartPage.jsx").then((module) => ({ default: module.CartPage })));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx").then((module) => ({ default: module.CheckoutPage })));
@@ -240,11 +244,7 @@ export default function App() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <RouteLoader>
-                <AdminPlaceholderPage
-                  eyebrow="CRM"
-                  title="Customers"
-                  description="Customer ops will get a dedicated workspace in the next phase."
-                />
+                <AdminCustomersPage />
               </RouteLoader>
             </ProtectedRoute>
           }
@@ -254,11 +254,7 @@ export default function App() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <RouteLoader>
-                <AdminPlaceholderPage
-                  eyebrow="Procurement"
-                  title="Suppliers"
-                  description="Supplier management is reserved for the next module expansion."
-                />
+                <AdminSuppliersPage />
               </RouteLoader>
             </ProtectedRoute>
           }
@@ -268,11 +264,7 @@ export default function App() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <RouteLoader>
-                <AdminPlaceholderPage
-                  eyebrow="Insights"
-                  title="Sales analytics"
-                  description="Advanced reporting has a dedicated home here and will be expanded next."
-                />
+                <AdminSalesAnalyticsPage />
               </RouteLoader>
             </ProtectedRoute>
           }
@@ -292,15 +284,15 @@ export default function App() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <RouteLoader>
-                <AdminPlaceholderPage
-                  eyebrow="Workspace"
-                  title="Settings"
-                  description="Workspace settings and policies are planned for the next release."
-                />
+                <AdminSettingsPage />
               </RouteLoader>
             </ProtectedRoute>
           }
         />
+        <Route path="/categories" element={<Navigate to="/admin/categories" replace />} />
+        <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
+        <Route path="/notifications" element={<Navigate to="/admin/notifications" replace />} />
+        <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
         <Route
           path="/picker"
           element={

@@ -31,6 +31,28 @@ export class InventoryService {
     );
   }
 
+  async trackReservationExpiry(reservation) {
+    if (!reservation || !env.redisEnabled) {
+      return;
+    }
+
+    const ttlSeconds = Math.max(
+      1,
+      Math.ceil((new Date(reservation.expiresAt).getTime() - Date.now()) / 1000)
+    );
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(
+        `inventory:reservation:${reservation.id}`,
+        JSON.stringify({ reservationId: reservation.id, expiresAt: reservation.expiresAt }),
+        "EX",
+        ttlSeconds
+      );
+    }
+
+    await this.enqueueReservationExpiry(reservation.id, Math.ceil(ttlSeconds / 60));
+  }
+
   mapInventoryRecord(record, expiryDays = DEFAULT_NEAR_EXPIRY_DAYS) {
     const now = new Date();
     const nearExpiryThreshold = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
@@ -319,7 +341,7 @@ export class InventoryService {
     });
   }
 
-  async reserveStock({ userId, items, cartSessionKey = null, ttlMinutes = DEFAULT_RESERVATION_MINUTES }, tx = prisma) {
+  async reserveStock({ userId, items, cartSessionKey = null, ttlMinutes = DEFAULT_RESERVATION_MINUTES, trackExpiry = true }, tx = prisma) {
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
     const reservation = await tx.inventoryReservation.create({
       data: {
@@ -422,24 +444,16 @@ export class InventoryService {
       await this.syncProductStock(item.productId, tx);
     }
 
-    if (env.redisEnabled) {
-      const redis = getRedis();
-      if (redis) {
-        await redis.set(
-          `inventory:reservation:${reservation.id}`,
-          JSON.stringify({ reservationId: reservation.id, expiresAt: expiresAt.toISOString() }),
-          "EX",
-          ttlMinutes * 60
-        );
-      }
-    }
-
-    await this.enqueueReservationExpiry(reservation.id, ttlMinutes);
-
-    return tx.inventoryReservation.findUnique({
+    const createdReservation = await tx.inventoryReservation.findUnique({
       where: { id: reservation.id },
       include: { items: true }
     });
+
+    if (trackExpiry) {
+      await this.trackReservationExpiry(createdReservation);
+    }
+
+    return createdReservation;
   }
 
   async commitReservation(reservationId, _options = {}, tx = prisma) {
@@ -504,13 +518,6 @@ export class InventoryService {
       where: { id: reservation.id },
       data: { status: "COMMITTED" }
     });
-
-    if (env.redisEnabled) {
-      const redis = getRedis();
-      if (redis) {
-        await redis.del(`inventory:reservation:${reservation.id}`);
-      }
-    }
 
     return updatedReservation;
   }
@@ -583,13 +590,6 @@ export class InventoryService {
       where: { id: reservation.id },
       data: { status }
     });
-
-    if (env.redisEnabled) {
-      const redis = getRedis();
-      if (redis) {
-        await redis.del(`inventory:reservation:${reservation.id}`);
-      }
-    }
 
     return updatedReservation;
   }

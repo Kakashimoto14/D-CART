@@ -4,7 +4,7 @@ export const validateBody = (schema) => (req, _res, next) => {
   const parsed = schema.safeParse(req.body);
 
   if (!parsed.success) {
-    return next(new AppError("Validation failed.", 422, parsed.error.flatten()));
+    return next(new AppError("Validation failed.", 422, parsed.error.flatten(), "VALIDATION_ERROR"));
   }
 
   req.body = parsed.data;
@@ -15,7 +15,7 @@ export const validateParams = (schema) => (req, _res, next) => {
   const parsed = schema.safeParse(req.params);
 
   if (!parsed.success) {
-    return next(new AppError("Validation failed.", 422, parsed.error.flatten()));
+    return next(new AppError("Validation failed.", 422, parsed.error.flatten(), "VALIDATION_ERROR"));
   }
 
   req.params = parsed.data;
@@ -26,7 +26,7 @@ export const validateQuery = (schema) => (req, _res, next) => {
   const parsed = schema.safeParse(req.query);
 
   if (!parsed.success) {
-    return next(new AppError("Validation failed.", 422, parsed.error.flatten()));
+    return next(new AppError("Validation failed.", 422, parsed.error.flatten(), "VALIDATION_ERROR"));
   }
 
   req.query = parsed.data;

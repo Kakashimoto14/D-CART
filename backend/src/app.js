@@ -84,7 +84,14 @@ const globalLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many requests. Please try again later." }
+  message: {
+    success: false,
+    error: {
+      code: "RATE_LIMITED",
+      message: "Too many requests. Please try again later."
+    },
+    message: "Too many requests. Please try again later."
+  }
 });
 
 const checkoutLimiter = rateLimit({
@@ -92,7 +99,14 @@ const checkoutLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many checkout attempts. Please wait a moment and try again." }
+  message: {
+    success: false,
+    error: {
+      code: "RATE_LIMITED",
+      message: "Too many checkout attempts. Please wait a moment and try again."
+    },
+    message: "Too many checkout attempts. Please wait a moment and try again."
+  }
 });
 
 app.use(globalLimiter);

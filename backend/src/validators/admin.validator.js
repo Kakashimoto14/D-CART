@@ -20,3 +20,24 @@ export const adminOrderParamSchema = z.object({
 export const adminNotificationLogParamSchema = z.object({
   notificationLogId: z.coerce.number().int().positive()
 });
+
+export const adminListQuerySchema = z.object({
+  q: z.string().trim().max(100).optional().default(""),
+  status: z.string().trim().max(50).optional().default("ALL"),
+  range: z.enum(["today", "7d", "30d", "custom"]).optional().default("30d"),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional()
+});
+
+export const adminSearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(100)
+});
+
+export const updateStoreSettingsSchema = z.object({
+  storeName: z.string().trim().min(2).max(120),
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  deliveryRadius: z.coerce.number().positive().max(100),
+  baseFee: z.coerce.number().min(0).max(10000),
+  perKmFee: z.coerce.number().min(0).max(10000)
+});

@@ -20,11 +20,11 @@ export const adminNavigation = [
   { to: "/admin/categories", label: "Categories", icon: Boxes },
   { to: "/admin/inventory", label: "Inventory", icon: ShoppingBasket },
   { to: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { to: "/admin/customers", label: "Customers", icon: Users, comingSoon: true },
-  { to: "/admin/suppliers", label: "Suppliers", icon: Truck, comingSoon: true },
-  { to: "/admin/analytics", label: "Sales Analytics", icon: ChartColumn, comingSoon: true },
+  { to: "/admin/customers", label: "Customers", icon: Users },
+  { to: "/admin/suppliers", label: "Suppliers", icon: Truck },
+  { to: "/admin/analytics", label: "Sales Analytics", icon: ChartColumn },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
-  { to: "/admin/settings", label: "Settings", icon: Settings, comingSoon: true }
+  { to: "/admin/settings", label: "Settings", icon: Settings }
 ];
 
 export const staffNavigation = [
@@ -69,17 +69,17 @@ export const routeTitles = {
   "/admin/customers": {
     eyebrow: "CRM",
     title: "Customers",
-    description: "Customer operations are planned for a dedicated phase."
+    description: "Customer history, activity, contact details, and value."
   },
   "/admin/suppliers": {
     eyebrow: "Procurement",
     title: "Suppliers",
-    description: "Supplier records and purchasing workflows are planned next."
+    description: "Supplier visibility from received inventory batches."
   },
   "/admin/analytics": {
     eyebrow: "Insights",
     title: "Sales analytics",
-    description: "Advanced commercial analytics will be expanded in a future release."
+    description: "Revenue, order trends, payment mix, and top-selling products."
   },
   "/admin/notifications": {
     eyebrow: "Comms",
@@ -89,7 +89,7 @@ export const routeTitles = {
   "/admin/settings": {
     eyebrow: "Workspace",
     title: "Settings",
-    description: "Workspace and policy settings will land in the next phase."
+    description: "Store profile, delivery area, pricing, and admin account details."
   },
   "/picker": {
     eyebrow: "Fulfillment",

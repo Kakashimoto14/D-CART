@@ -3,10 +3,12 @@ import { adminApi } from "../api/adminApi";
 import { PageHero, SectionCard, StatCard } from "../components/admin/AdminPrimitives.jsx";
 import { LoadingState } from "../components/common/LoadingState";
 import { StatusBadge } from "../components/common/StatusBadge";
+import { getApiErrorMessage } from "../utils/apiError";
 import { formatDateTime } from "../utils/format";
 
 export function AdminNotificationsPage() {
   const [dashboard, setDashboard] = useState(null);
+  const [notifications, setNotifications] = useState({ events: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -15,10 +17,14 @@ export function AdminNotificationsPage() {
   const loadData = useCallback(async () => {
     try {
       setError("");
-      const data = await adminApi.dashboard();
+      const [data, notificationData] = await Promise.all([
+        adminApi.dashboard(),
+        adminApi.notifications()
+      ]);
       setDashboard(data);
+      setNotifications(notificationData);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load notification data.");
+      setError(getApiErrorMessage(requestError, "Unable to load notification data."));
     } finally {
       setLoading(false);
     }
@@ -37,7 +43,7 @@ export function AdminNotificationsPage() {
       setSuccess(`Notification #${notificationLogId} requeued for delivery.`);
       await loadData();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to retry notification.");
+      setError(getApiErrorMessage(requestError, "Unable to retry notification."));
     } finally {
       setRetryingNotificationId(null);
     }
@@ -66,6 +72,25 @@ export function AdminNotificationsPage() {
       </div>
 
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
+        <SectionCard title="Admin alerts" description="Recent operational alerts from orders, payments, and inventory.">
+          <div className="space-y-3">
+            {(notifications.events || []).slice(0, 10).map((event) => (
+              <div key={event.id} className="rounded-[22px] border border-slate-100 bg-slate-50/70 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">{event.title}</p>
+                    <p className="mt-1 text-sm text-slate-500">{event.message}</p>
+                  </div>
+                  <StatusBadge status={event.type} />
+                </div>
+              </div>
+            ))}
+            {(notifications.events || []).length === 0 ? (
+              <p className="text-sm text-slate-500">No admin alerts right now.</p>
+            ) : null}
+          </div>
+        </SectionCard>
+
         <SectionCard title="Recent notification delivery" description="Recent customer-facing email attempts with retry controls.">
           <div className="space-y-3">
             {(dashboard?.notifications?.recentLogs || []).map((log) => (

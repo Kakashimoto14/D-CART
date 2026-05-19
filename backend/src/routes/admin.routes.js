@@ -3,21 +3,68 @@ import {
   completeRefund,
   createStaff,
   getDashboard,
+  getNotifications,
+  getSalesAnalytics,
+  getSettings,
+  globalSearch,
+  listCustomers,
+  listSuppliers,
+  updateSettings,
   retryNotification
 } from "../controllers/admin.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
-import { validateBody, validateParams } from "../middlewares/validate.middleware.js";
+import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   adminNotificationLogParamSchema,
   adminOrderParamSchema,
-  createStaffSchema
+  adminListQuerySchema,
+  adminSearchQuerySchema,
+  createStaffSchema,
+  updateStoreSettingsSchema
 } from "../validators/admin.validator.js";
 
 const router = Router();
 
 router.get("/dashboard", authenticate, authorize("ADMIN"), asyncHandler(getDashboard));
+router.get(
+  "/customers",
+  authenticate,
+  authorize("ADMIN"),
+  validateQuery(adminListQuerySchema),
+  asyncHandler(listCustomers)
+);
+router.get(
+  "/suppliers",
+  authenticate,
+  authorize("ADMIN"),
+  validateQuery(adminListQuerySchema),
+  asyncHandler(listSuppliers)
+);
+router.get(
+  "/analytics",
+  authenticate,
+  authorize("ADMIN"),
+  validateQuery(adminListQuerySchema),
+  asyncHandler(getSalesAnalytics)
+);
+router.get("/notifications", authenticate, authorize("ADMIN"), asyncHandler(getNotifications));
+router.get("/settings", authenticate, authorize("ADMIN"), asyncHandler(getSettings));
+router.put(
+  "/settings",
+  authenticate,
+  authorize("ADMIN"),
+  validateBody(updateStoreSettingsSchema),
+  asyncHandler(updateSettings)
+);
+router.get(
+  "/search",
+  authenticate,
+  authorize("ADMIN"),
+  validateQuery(adminSearchQuerySchema),
+  asyncHandler(globalSearch)
+);
 router.patch(
   "/refunds/:orderId/complete",
   authenticate,

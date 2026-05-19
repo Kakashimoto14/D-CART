@@ -8,6 +8,7 @@ import { EmptyState } from "../components/common/EmptyState";
 import { LoadingState } from "../components/common/LoadingState";
 import { useAuth } from "../hooks/useAuth.js";
 import { useCustomer } from "../hooks/useCustomer.js";
+import { getApiErrorMessage } from "../utils/apiError";
 import { currency } from "../utils/format";
 
 const ADDRESS_KEY = "dcart_delivery_address";
@@ -229,9 +230,10 @@ export function CheckoutPage() {
       navigate(`/orders/${order.id}`, { replace: true });
     } catch (requestError) {
       setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
+        getApiErrorMessage(
+          requestError,
           "Unable to place the order. Please verify your location and try again."
+        )
       );
     } finally {
       setIsSubmitting(false);

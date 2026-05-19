@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../config/env.js";
+import { logger } from "../infrastructure/logger/logger.js";
 import { AppError } from "../utils/AppError.js";
 
 const PAYMENT_REQUEST_TIMEOUT_MS = 15000;
@@ -16,8 +17,10 @@ export class PaymentService {
   ensureConfigured() {
     if (!this.isConfigured()) {
       throw new AppError(
-        "GCash checkout is temporarily unavailable because PayMongo is not configured. Please use Cash on Delivery for now.",
-        503
+        "Payment could not be completed. Please check your GCash details or try another payment method.",
+        503,
+        null,
+        "PAYMENT_FAILED"
       );
     }
   }
@@ -115,19 +118,32 @@ export class PaymentService {
         }),
         signal: AbortSignal.timeout(PAYMENT_REQUEST_TIMEOUT_MS)
       });
-    } catch (_error) {
+    } catch (error) {
+      logger.warn({ err: error, orderId: order.id }, "Unable to reach PayMongo checkout API.");
       throw new AppError(
-        "Unable to reach PayMongo right now. Please try GCash again or use Cash on Delivery.",
-        503
+        "Payment could not be completed. Please check your GCash details or try another payment method.",
+        503,
+        null,
+        "PAYMENT_FAILED"
       );
     }
 
     const payload = await response.json();
 
     if (!response.ok) {
+      logger.warn(
+        {
+          orderId: order.id,
+          status: response.status,
+          providerPayload: payload
+        },
+        "PayMongo checkout session creation failed."
+      );
       throw new AppError(
-        payload?.errors?.[0]?.detail || payload?.message || "Unable to create GCash checkout session.",
-        response.status
+        "Payment could not be completed. Please check your GCash details or try another payment method.",
+        response.status,
+        null,
+        "PAYMENT_FAILED"
       );
     }
 

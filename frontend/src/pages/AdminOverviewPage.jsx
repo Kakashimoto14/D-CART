@@ -28,6 +28,7 @@ import {
   StatCard
 } from "../components/admin/AdminPrimitives.jsx";
 import { currency, formatDateTime } from "../utils/format";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export function AdminOverviewPage() {
   const [dashboard, setDashboard] = useState(null);
@@ -40,7 +41,7 @@ export function AdminOverviewPage() {
       const data = await adminApi.dashboard();
       setDashboard(data);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load dashboard.");
+      setError(getApiErrorMessage(requestError, "Unable to load dashboard."));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export function AdminOverviewPage() {
     <div className="space-y-6">
       <PageHero
         eyebrow="Admin"
-        title="Single-store command center"
+        title="Store Operations Command Center"
         description="Track sales, stock pressure, fulfillment velocity, dispatch readiness, and communication health from one clean operations view."
       />
 
@@ -105,9 +106,9 @@ export function AdminOverviewPage() {
           icon={AlertTriangle}
         />
         <StatCard
-          label="Overdue reservations"
+          label="Pending deliveries"
           value={dashboard?.totals?.overdueReservations || 0}
-          hint={`${dashboard?.runtime?.redisStatus || "disabled"} Redis status`}
+          hint="Orders or stock holds that need attention"
           tone={(dashboard?.totals?.overdueReservations || 0) > 0 ? "warning" : "default"}
           icon={Activity}
         />
@@ -187,7 +188,7 @@ export function AdminOverviewPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Runtime" description="Realtime stack and queue readiness.">
+        <SectionCard title="Operations support" description="Background processing and customer communication health.">
           <div className="space-y-4">
             <div className="rounded-[20px] bg-slate-50/80 p-5">
               <div className="flex items-center justify-between">
@@ -195,7 +196,9 @@ export function AdminOverviewPage() {
                 <StatusBadge status={String(dashboard?.runtime?.redisStatus || "disabled").toUpperCase()} />
               </div>
               <p className="mt-2 text-sm text-slate-500">
-                Queue mode is {dashboard?.runtime?.redisEnabled ? "enabled" : "running on fallback mode"}.
+                {dashboard?.runtime?.redisEnabled
+                  ? "Background jobs are enabled for realtime operational support."
+                  : "Background jobs are running in simple mode. Customer checkout still works, but automated retries may be limited."}
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -238,11 +241,11 @@ export function AdminOverviewPage() {
                   <div>
                     <p className="font-semibold text-slate-900">{product.name}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {product.totalQuantity} units fulfilled
+                      {product.fulfilledQty} units fulfilled
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-brand-700">
-                    {currency(product.totalSales || 0)}
+                    {product.requestedQty} requested
                   </p>
                 </div>
               </div>
