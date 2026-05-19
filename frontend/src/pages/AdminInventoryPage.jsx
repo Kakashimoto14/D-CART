@@ -202,7 +202,7 @@ export function AdminInventoryPage() {
                             <div className="rounded-[18px] bg-white/90 p-4 text-sm text-slate-500">
                               <p className="font-semibold text-slate-800">Next batch</p>
                               <p className="mt-2">
-                                {nextBatch.batchCode} {nextBatch.supplier ? `• ${nextBatch.supplier}` : ""}
+                                {nextBatch.batchCode} {nextBatch.supplier ? `- ${nextBatch.supplier}` : ""}
                               </p>
                               <p className="mt-1">
                                 Expires {nextBatch.expiresAt ? formatDateTime(nextBatch.expiresAt) : "No expiry set"}
@@ -289,7 +289,7 @@ export function AdminInventoryPage() {
                     <div key={item.productId} className="rounded-2xl bg-white p-4">
                       <p className="font-semibold text-slate-900">{item.product?.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Available {item.availableQty} • Reorder point {item.reorderPoint}
+                        Available {item.availableQty} - Reorder point {item.reorderPoint}
                       </p>
                     </div>
                   ))}

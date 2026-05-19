@@ -6,15 +6,22 @@ export function CartItemRow({ item, onQuantityChange, onRemove, busy }) {
   const hasAvailabilityIssue = Number(item.product.stock || 0) < Number(item.quantity || 0);
 
   return (
-    <div className="grid gap-4 rounded-[24px] border border-slate-100 bg-white px-4 py-4 md:grid-cols-[1.7fr_0.7fr_0.9fr_auto] md:items-center">
-      <div className="min-w-0">
-        <h3 className="font-semibold text-slate-900">{item.product.name}</h3>
-        <p className="text-sm text-slate-500">{item.product.category?.name || "General"}</p>
-        {hasAvailabilityIssue ? (
-          <p className="mt-2 text-sm font-medium text-rose-600">
-            Only {item.product.stock} left in stock. Please adjust before checkout.
-          </p>
-        ) : null}
+    <div className="grid gap-4 rounded-[20px] border border-slate-100 bg-white px-4 py-4 shadow-soft md:grid-cols-[1.7fr_0.7fr_0.9fr_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl grocery-placeholder">
+          {item.product.image ? (
+            <img src={item.product.image} alt={item.product.name} className="h-full w-full object-cover" />
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 font-semibold text-slate-900">{item.product.name}</h3>
+          <p className="text-sm text-slate-500">{item.product.category?.name || "General"}</p>
+          {hasAvailabilityIssue ? (
+            <p className="mt-2 text-sm font-medium text-rose-600">
+              Only {item.product.stock} left in stock. Please adjust before checkout.
+            </p>
+          ) : null}
+        </div>
       </div>
       <p className="text-sm font-medium text-slate-700">{currency(item.product.price)}</p>
       <div className="flex">

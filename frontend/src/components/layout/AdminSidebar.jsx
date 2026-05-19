@@ -35,7 +35,7 @@ function SidebarLink({ item, compact = false, onNavigate }) {
         `group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition duration-200 ${
           isActive
             ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-900/20"
-            : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
+            : "text-slate-600 hover:bg-brand-50 hover:text-brand-600"
         } ${compact ? "justify-center" : ""}`
       }
     >
@@ -74,7 +74,7 @@ function SidebarBody({ links, utilityLinks, compact, onNavigate, onToggleCompact
         <button
           type="button"
           onClick={onToggleCompact}
-          className="hidden rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-brand-200 hover:text-brand-700 xl:inline-flex"
+          className="hidden rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-brand-200 hover:text-brand-600 xl:inline-flex"
           aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
         >
           {compact ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}

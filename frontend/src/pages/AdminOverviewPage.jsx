@@ -92,10 +92,10 @@ export function AdminOverviewPage() {
           icon={BadgeDollarSign}
         />
         <StatCard
-          label="Delivered today"
-          value={dashboard?.totals?.deliveredToday || 0}
-          hint={`${dashboard?.totals?.delivered || 0} all-time delivered`}
-          tone="success"
+          label="Pending orders"
+          value={dashboard?.totals?.pendingOrders || 0}
+          hint={`${dashboard?.totals?.delivered || 0} completed or delivered`}
+          tone={(dashboard?.totals?.pendingOrders || 0) > 0 ? "warning" : "success"}
           icon={CheckCheck}
         />
         <StatCard
@@ -106,10 +106,10 @@ export function AdminOverviewPage() {
           icon={AlertTriangle}
         />
         <StatCard
-          label="Pending deliveries"
-          value={dashboard?.totals?.overdueReservations || 0}
-          hint="Orders or stock holds that need attention"
-          tone={(dashboard?.totals?.overdueReservations || 0) > 0 ? "warning" : "default"}
+          label="Cancelled / refunds"
+          value={`${dashboard?.totals?.cancelled || 0} / ${dashboard?.totals?.pendingRefunds || 0}`}
+          hint="Cancelled orders and pending refund reviews"
+          tone={(dashboard?.totals?.pendingRefunds || 0) > 0 ? "danger" : "default"}
           icon={Activity}
         />
       </div>
@@ -120,30 +120,30 @@ export function AdminOverviewPage() {
           description="A compact view of commercial and operational balance."
         >
           <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="h-72 rounded-[22px] bg-slate-50/80 p-4">
+            <div className="min-h-72 h-72 rounded-[20px] bg-[#fff6ee] p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={analyticsSeries}>
                   <defs>
                     <linearGradient id="overviewTrend" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#2a9978" stopOpacity={0.42} />
-                      <stop offset="95%" stopColor="#2a9978" stopOpacity={0.04} />
+                      <stop offset="5%" stopColor="#FF6B4A" stopOpacity={0.42} />
+                      <stop offset="95%" stopColor="#FF6B4A" stopOpacity={0.04} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4df" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eaded5" />
                   <XAxis dataKey="label" stroke="#6b7280" tickLine={false} axisLine={false} />
                   <YAxis stroke="#6b7280" tickLine={false} axisLine={false} />
                   <Tooltip />
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#1e7d62"
+                    stroke="#FF6B4A"
                     fill="url(#overviewTrend)"
                     strokeWidth={3}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="h-72 rounded-[22px] bg-slate-50/80 p-4">
+            <div className="min-h-72 h-72 rounded-[20px] bg-[#fff6ee] p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -153,7 +153,7 @@ export function AdminOverviewPage() {
                     innerRadius={56}
                     outerRadius={86}
                     paddingAngle={4}
-                    fill="#2a9978"
+                    fill="#0D1B2A"
                   />
                   <Tooltip />
                 </PieChart>
@@ -244,7 +244,7 @@ export function AdminOverviewPage() {
                       {product.fulfilledQty} units fulfilled
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-brand-700">
+                  <p className="text-sm font-semibold text-brand-600">
                     {product.requestedQty} requested
                   </p>
                 </div>

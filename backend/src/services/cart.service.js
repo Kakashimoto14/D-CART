@@ -2,6 +2,8 @@ import { prisma } from "../config/prisma.js";
 import { Cart } from "../models/Cart.js";
 import { AppError } from "../utils/AppError.js";
 
+const categorySummarySelect = { id: true, name: true };
+
 export class CartService {
   async getOrCreateCart(userId) {
     const cart = await prisma.cart.upsert({
@@ -13,7 +15,9 @@ export class CartService {
           include: {
             product: {
               include: {
-                category: true
+                category: {
+                  select: categorySummarySelect
+                }
               }
             }
           }

@@ -59,7 +59,7 @@ export function AccountPage() {
 
       <div className="space-y-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
+          <p className="brand-kicker">
             Quick actions
           </p>
           <h1 className="mt-2 text-3xl font-bold text-ink">Keep the essentials close</h1>
@@ -72,7 +72,7 @@ export function AccountPage() {
             className="panel flex items-center justify-between gap-4 px-5 py-5 transition hover:-translate-y-0.5"
           >
             <div className="flex items-start gap-4">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-[20px] bg-brand-50 text-brand-700">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-[20px] bg-brand-50 text-brand-600">
                 {index === 0 ? (
                   <ShoppingBag className="h-5 w-5" />
                 ) : index === 1 ? (

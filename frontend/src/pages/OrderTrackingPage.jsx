@@ -97,7 +97,7 @@ export function OrderTrackingPage() {
               <div>
                 <p className="text-sm font-semibold text-white">Payment</p>
                 <p className="mt-1 text-sm text-slate-300">
-                  {paymentLabel(order)} • {order.paymentStatus}
+                  {paymentLabel(order)} - {order.paymentStatus}
                 </p>
               </div>
               <Truck className="h-10 w-10 text-brand-300" />
@@ -109,7 +109,7 @@ export function OrderTrackingPage() {
         </div>
 
         <div className="panel px-6 py-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
+          <p className="brand-kicker">
             Next steps
           </p>
           <h2 className="mt-2 text-2xl font-bold text-ink">What happens now</h2>
@@ -121,7 +121,7 @@ export function OrderTrackingPage() {
         <div className="space-y-6">
           <div className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <ShoppingBag className="h-5 w-5" />
               </span>
               <div>
@@ -141,7 +141,7 @@ export function OrderTrackingPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       Qty {item.quantity}
                       {item.finalQuantity !== undefined && item.finalQuantity !== item.quantity
-                        ? ` • Final ${item.finalQuantity}`
+                        ? ` - Final ${item.finalQuantity}`
                         : ""}
                     </p>
                     {item.pickStatus === "UNAVAILABLE" ? (
@@ -165,7 +165,7 @@ export function OrderTrackingPage() {
 
           <div className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <ReceiptText className="h-5 w-5" />
               </span>
               <div>
@@ -206,7 +206,7 @@ export function OrderTrackingPage() {
 
         <aside className="space-y-6">
           <div className="panel px-6 py-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
+            <p className="brand-kicker">
               Summary
             </p>
             <div className="mt-5 space-y-3">

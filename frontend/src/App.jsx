@@ -6,6 +6,7 @@ import { useAuth } from "./hooks/useAuth.js";
 import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 
 const AdminInventoryPage = lazy(() => import("./pages/AdminInventoryPage.jsx").then((module) => ({ default: module.AdminInventoryPage })));
+const AdminCategoriesPage = lazy(() => import("./pages/AdminCategoriesPage.jsx").then((module) => ({ default: module.AdminCategoriesPage })));
 const AdminNotificationsPage = lazy(() => import("./pages/AdminNotificationsPage.jsx").then((module) => ({ default: module.AdminNotificationsPage })));
 const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage.jsx").then((module) => ({ default: module.AdminOrdersPage })));
 const AdminOverviewPage = lazy(() => import("./pages/AdminOverviewPage.jsx").then((module) => ({ default: module.AdminOverviewPage })));
@@ -210,11 +211,7 @@ export default function App() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <RouteLoader>
-                <AdminPlaceholderPage
-                  eyebrow="Catalog"
-                  title="Categories"
-                  description="A dedicated categories workspace is planned in the next phase."
-                />
+                <AdminCategoriesPage />
               </RouteLoader>
             </ProtectedRoute>
           }
@@ -269,6 +266,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/admin/sales-analytics" element={<Navigate to="/admin/analytics" replace />} />
         <Route
           path="/admin/notifications"
           element={

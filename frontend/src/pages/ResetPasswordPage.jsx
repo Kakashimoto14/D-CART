@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
+import { BrandLogo } from "../components/brand/BrandLogo.jsx";
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -44,10 +45,9 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1fr_1fr]">
         <section className="panel px-6 py-8 sm:px-8">
-          <div className="mb-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
-              Create a new password
-            </p>
+          <div className="mb-8 space-y-5">
+            <BrandLogo className="h-12 w-auto" imageClassName="h-12 w-auto" />
+            <p className="brand-kicker">Create a new password</p>
             <h2 className="mt-2 text-3xl font-bold text-ink">Choose something secure</h2>
           </div>
 
@@ -79,18 +79,16 @@ export function ResetPasswordPage() {
 
           <p className="mt-6 text-sm text-slate-500">
             Return to{" "}
-            <Link to="/login" className="font-semibold text-brand-700">
+            <Link to="/login" className="font-semibold text-brand-600">
               sign in
             </Link>
           </p>
         </section>
 
         <section className="panel hidden overflow-hidden lg:block">
-          <div className="flex h-full flex-col justify-between bg-mesh-soft px-10 py-12">
+          <div className="flex h-full flex-col justify-between bg-[linear-gradient(135deg,#fff6ee_0%,#ffffff_52%,#ffe7db_100%)] px-10 py-12">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">
-                Account safety
-              </p>
+              <p className="brand-kicker">Account safety</p>
               <h1 className="mt-4 text-4xl font-extrabold leading-tight text-ink">
                 Reset securely and get back to ordering fast.
               </h1>

@@ -14,6 +14,7 @@ import { NotificationService } from "./notification.service.js";
 const notificationService = new NotificationService();
 const inventoryService = new InventoryService();
 const auditService = new AuditService();
+const categorySummarySelect = { id: true, name: true };
 
 const startOfRange = (range, from) => {
   const now = new Date();
@@ -347,6 +348,7 @@ export class AdminService {
         products: productCount,
         pendingOrders,
         pendingRefunds: pendingRefundCount,
+        cancelled: cancelledCount,
         deliveredToday: deliveredTodayCount,
         lowStockAlerts,
         nearExpiryAlerts,
@@ -502,7 +504,11 @@ export class AdminService {
         inventoryItem: {
           include: {
             product: {
-              include: { category: true }
+              include: {
+                category: {
+                  select: categorySummarySelect
+                }
+              }
             }
           }
         }
@@ -802,7 +808,7 @@ export class AdminService {
 
   async globalSearch(query) {
     const search = query.trim();
-    const [products, orders, inventory, customers] = await Promise.all([
+    const [products, orders, categories, inventory, customers] = await Promise.all([
       prisma.product.findMany({
         where: {
           OR: [
@@ -811,7 +817,11 @@ export class AdminService {
             { category: { name: { contains: search, mode: "insensitive" } } }
           ]
         },
-        include: { category: true },
+        include: {
+          category: {
+            select: categorySummarySelect
+          }
+        },
         take: 6
       }),
       prisma.order.findMany({
@@ -827,6 +837,16 @@ export class AdminService {
             },
         include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { createdAt: "desc" },
+        take: 6
+      }),
+      prisma.category.findMany({
+        where: {
+          name: { contains: search, mode: "insensitive" }
+        },
+        select: {
+          id: true,
+          name: true
+        },
         take: 6
       }),
       prisma.inventoryItem.findMany({
@@ -866,6 +886,12 @@ export class AdminService {
         label: `Order #${order.id}`,
         detail: `${order.user?.name || "Customer"} - ${order.status}`,
         to: "/admin/orders"
+      })),
+      categories: categories.map((category) => ({
+        id: category.id,
+        label: category.name,
+        detail: "Category",
+        to: "/admin/categories"
       })),
       inventory: inventory.map((item) => ({
         id: item.productId,

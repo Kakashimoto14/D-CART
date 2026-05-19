@@ -6,14 +6,13 @@ export function PageHero({ eyebrow, title, description, actions }) {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-[28px] border border-brand-100/70 bg-gradient-to-br from-white via-brand-50/70 to-emerald-100/80 p-6 shadow-panel sm:p-8"
+      className="relative overflow-hidden rounded-[18px] border border-white/80 bg-white/90 p-5 shadow-panel"
     >
-      <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(46,164,120,0.2),transparent_50%)] lg:block" />
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.32em] text-brand-700">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{title}</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">{description}</p>
+          <p className="brand-kicker">{eyebrow}</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">{title}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
       </div>
@@ -38,7 +37,7 @@ export function StatCard({ label, value, hint, tone = "default", icon: Icon }) {
           {hint ? <p className="mt-2 text-sm text-slate-500">{hint}</p> : null}
         </div>
         {Icon ? (
-          <div className="rounded-2xl bg-white/80 p-3 text-brand-700 shadow-sm">
+          <div className="rounded-2xl bg-white/80 p-3 text-brand-600 shadow-sm">
             <Icon className="h-5 w-5" />
           </div>
         ) : null}
@@ -49,7 +48,7 @@ export function StatCard({ label, value, hint, tone = "default", icon: Icon }) {
 
 export function SectionCard({ title, description, action, children, className = "" }) {
   return (
-    <section className={`panel rounded-[24px] border border-white/80 p-6 ${className}`}>
+    <section className={`panel rounded-[22px] border border-white/80 p-5 sm:p-6 ${className}`}>
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
@@ -100,7 +99,7 @@ export function FormSection({ title, description, children }) {
   return (
     <div className="space-y-4 rounded-[20px] border border-slate-100 bg-slate-50/70 p-5">
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-slate-700">{title}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-ink">{title}</h3>
         {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
       </div>
       {children}
@@ -133,10 +132,10 @@ export function HealthMeter({ label, value, total, tone = "brand" }) {
 
 export function PlaceholderModule({ title, description }) {
   return (
-    <div className="panel rounded-[28px] border border-dashed border-brand-200 bg-[rgba(255,255,255,0.85)] p-10 text-center">
+    <div className="panel rounded-[24px] border border-dashed border-brand-200 bg-[rgba(255,255,255,0.85)] p-10 text-center">
       <div className="mx-auto max-w-xl space-y-4">
-        <span className="inline-flex rounded-full bg-brand-100 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
-          Coming soon
+        <span className="inline-flex rounded-full bg-brand-100 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-600">
+          Workspace module
         </span>
         <h2 className="text-2xl font-bold text-ink">{title}</h2>
         <p className="text-sm leading-6 text-slate-500">{description}</p>

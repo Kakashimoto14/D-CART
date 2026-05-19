@@ -1,14 +1,16 @@
-import { Search, Sparkles, Truck } from "lucide-react";
+import { HelpCircle, Search, Sparkles, Truck } from "lucide-react";
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { categoryApi } from "../api/categoryApi";
 import { productApi } from "../api/productApi";
+import { BrandLogo } from "../components/brand/BrandLogo.jsx";
 import { EmptyState } from "../components/common/EmptyState.jsx";
 import { ProductGridSkeleton } from "../components/customer/ProductGridSkeleton.jsx";
 import { ProductCard } from "../components/products/ProductCard.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useCustomer } from "../hooks/useCustomer.js";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
+import { getApiErrorMessage } from "../utils/apiError.js";
 
 const isInStock = (product) => Number(product.stock || 0) > 0;
 
@@ -27,17 +29,23 @@ export function HomePage() {
 
   const loadHomeData = useCallback(async () => {
     try {
-      const [productResult, categoryResult] = await Promise.all([
+      const [productResponse, categoryResponse] = await Promise.allSettled([
         productApi.list(),
         categoryApi.list()
       ]);
 
       startTransition(() => {
-        setProducts(productResult.products || []);
-        setCategories(categoryResult || []);
+        setProducts(productResponse.status === "fulfilled" ? productResponse.value.products || [] : []);
+        setCategories(categoryResponse.status === "fulfilled" ? categoryResponse.value || [] : []);
       });
+
+      if (productResponse.status === "rejected") {
+        setError(getApiErrorMessage(productResponse.reason, "Products could not be loaded. Please try again."));
+      } else if (categoryResponse.status === "rejected") {
+        setError(getApiErrorMessage(categoryResponse.reason, "Categories could not be loaded. Please try again."));
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load the shop.");
+      setError(getApiErrorMessage(requestError, "Products could not be loaded. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -82,6 +90,15 @@ export function HomePage() {
     [filteredProducts]
   );
 
+  const bestValueProducts = useMemo(
+    () =>
+      [...filteredProducts]
+        .filter(isInStock)
+        .sort((left, right) => Number(left.price || 0) - Number(right.price || 0))
+        .slice(0, 8),
+    [filteredProducts]
+  );
+
   const runProductAction = async (productId, action) => {
     setBusyProductId(productId);
     setError("");
@@ -89,101 +106,96 @@ export function HomePage() {
     try {
       await action();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to update your cart.");
+      setError(getApiErrorMessage(requestError, "Unable to update your cart."));
     } finally {
       setBusyProductId(null);
     }
   };
 
-  const renderProducts = (items) => (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  const renderProducts = (items, horizontal = false) => (
+    <div
+      className={
+        horizontal
+          ? "flex snap-x gap-3 overflow-x-auto pb-2"
+          : "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"
+      }
+    >
       {items.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          quantity={cartQuantities.get(product.id) || 0}
-          busy={busyProductId === product.id}
-          onAddToCart={() => runProductAction(product.id, () => addToCart(product))}
-          onIncrease={() => runProductAction(product.id, () => addToCart(product))}
-          onDecrease={() =>
-            runProductAction(product.id, () => {
-              const currentQuantity = cartQuantities.get(product.id) || 0;
-              return currentQuantity <= 1
-                ? removeCartItem(product.id)
-                : updateCartItem(product.id, currentQuantity - 1);
-            })
-          }
-        />
+        <div key={product.id} className={horizontal ? "w-40 shrink-0 snap-start sm:w-48" : ""}>
+          <ProductCard
+            product={product}
+            quantity={cartQuantities.get(product.id) || 0}
+            busy={busyProductId === product.id}
+            onAddToCart={() => runProductAction(product.id, () => addToCart(product))}
+            onIncrease={() => runProductAction(product.id, () => addToCart(product))}
+            onDecrease={() =>
+              runProductAction(product.id, () => {
+                const currentQuantity = cartQuantities.get(product.id) || 0;
+                return currentQuantity <= 1
+                  ? removeCartItem(product.id)
+                  : updateCartItem(product.id, currentQuantity - 1);
+              })
+            }
+          />
+        </div>
       ))}
     </div>
   );
 
   return (
-    <section className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="section-shell overflow-hidden bg-[linear-gradient(135deg,rgba(255,255,255,0.92)_0%,rgba(255,240,234,0.94)_100%)]">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <section className="space-y-5">
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="section-shell overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#0d1b2a_0%,#182536_62%,#2b3137_100%)] text-white">
+          <div className="flex items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-700">
-                Welcome back
-              </p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-                {user?.name?.split(" ")[0] || "Shopper"}, what do you need today?
+              <BrandLogo className="h-12 w-44 rounded-2xl bg-white px-3 py-2 shadow-sm" imageClassName="h-8" />
+              <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                Groceries. Delivered. Fast.
               </h2>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
-                Search, add items, and check out without bouncing between pages. Your basket stays one tap away the whole time.
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+                Hi {user?.name?.split(" ")[0] || "there"} - shop everyday essentials and check out in a few taps.
               </p>
             </div>
-
-            <Link
-              to="/cart"
-              className="inline-flex items-center justify-between rounded-[22px] bg-ink px-5 py-4 text-white shadow-lg lg:min-w-[240px]"
-            >
-              <span>
-                <span className="block text-xs uppercase tracking-[0.18em] text-slate-300">
-                  Cart summary
-                </span>
-                <span className="mt-1 block text-base font-semibold">
-                  {cartCount} {cartCount === 1 ? "item" : "items"} ready
-                </span>
-              </span>
-              <span className="rounded-full bg-white/10 px-3 py-2 text-sm font-semibold">
-                View cart
-              </span>
+            <Link to="/account" className="inline-flex items-center rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
+              <HelpCircle className="mr-1 h-4 w-4" />
+              Help
             </Link>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
             <label className="relative block">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search milk, bread, vegetables, snacks..."
-                className="field pl-12"
+                placeholder="Search products..."
+                className="field border-white/20 bg-white pl-12"
               />
             </label>
-            <Link to="/products" className="btn-secondary">
+            <Link to="/products" className="btn-primary rounded-xl">
               Browse full shop
             </Link>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
               onClick={() => setSelectedCategory("All")}
-              className={`chip ${selectedCategory === "All" ? "chip-active" : ""}`}
+              className={`chip shrink-0 px-3 py-2 text-xs ${selectedCategory === "All" ? "chip-active" : "border-white/15 bg-white/10 text-white hover:bg-white/15"}`}
             >
-              All items
+              All
             </button>
             {categories.map((category) => (
               <button
                 key={category.id}
                 type="button"
                 onClick={() => setSelectedCategory(category.name)}
-                className={`chip ${selectedCategory === category.name ? "chip-active" : ""}`}
+                className={`chip shrink-0 gap-2 px-3 py-2 text-xs ${selectedCategory === category.name ? "chip-active" : "border-white/15 bg-white/10 text-white hover:bg-white/15"}`}
               >
+                {category.image ? (
+                  <img src={category.image} alt="" className="h-5 w-5 rounded-full object-cover" />
+                ) : null}
                 {category.name}
               </button>
             ))}
@@ -200,7 +212,7 @@ export function HomePage() {
                   </p>
                   <h3 className="mt-2 text-2xl font-bold">Order #{activeOrder.id}</h3>
                   <p className="mt-2 text-sm text-slate-300">
-                    {activeOrder.status.replaceAll("_", " ")} • {activeOrder.paymentStatus}
+                    {activeOrder.status.replaceAll("_", " ")} - {activeOrder.paymentStatus}
                   </p>
                 </div>
                 <Truck className="h-10 w-10 text-brand-300" />
@@ -211,7 +223,7 @@ export function HomePage() {
             </div>
           ) : (
             <div className="panel px-5 py-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
+              <p className="brand-kicker">
                 Ready to shop
               </p>
               <h3 className="mt-2 text-xl font-bold text-ink">Fast checkout, less waiting</h3>
@@ -223,7 +235,7 @@ export function HomePage() {
 
           <div className="panel px-5 py-5">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
@@ -254,26 +266,36 @@ export function HomePage() {
           <div className="space-y-4">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
-                  {cartCount ? "Continue shopping" : "Popular items"}
+                <p className="brand-kicker">
+                  Best Value Today
                 </p>
-                <h3 className="mt-2 text-2xl font-bold text-ink">
-                  {cartCount ? "Keep building your basket" : "Start with customer favorites"}
+                <h3 className="mt-1 text-xl font-bold text-ink">
+                  Budget-friendly picks
                 </h3>
               </div>
-              <Link to="/products" className="hidden text-sm font-semibold text-brand-700 sm:inline-flex">
+              <Link to="/products" className="hidden text-sm font-semibold text-brand-600 sm:inline-flex">
                 See all
               </Link>
             </div>
-            {renderProducts(featuredProducts)}
+            {renderProducts(bestValueProducts.length ? bestValueProducts : featuredProducts)}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="brand-kicker">
+                Fresh Picks
+              </p>
+              <h3 className="mt-1 text-xl font-bold text-ink">Ready for your basket</h3>
+            </div>
+            {renderProducts(featuredProducts, true)}
           </div>
 
           <div className="space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
-                Recently added
+              <p className="brand-kicker">
+                What&apos;s New
               </p>
-              <h3 className="mt-2 text-2xl font-bold text-ink">Fresh arrivals in the catalog</h3>
+              <h3 className="mt-1 text-xl font-bold text-ink">Fresh arrivals in the catalog</h3>
             </div>
             {renderProducts(recentProducts)}
           </div>

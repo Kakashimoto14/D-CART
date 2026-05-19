@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { GoogleSignInButton } from "../components/auth/GoogleSignInButton";
+import { BrandLogo } from "../components/brand/BrandLogo.jsx";
 import { useAuth } from "../hooks/useAuth";
 
 export function LoginPage() {
@@ -56,11 +57,9 @@ export function LoginPage() {
         <section className="panel hidden overflow-hidden lg:block">
           <div className="flex h-full flex-col justify-between bg-[linear-gradient(135deg,#0d1b2a_0%,#2b3137_100%)] px-10 py-12 text-white">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-200">
-                Decolores Grocery
-              </p>
+              <BrandLogo className="h-14 w-52 rounded-2xl bg-white px-3 py-2 shadow-sm" imageClassName="h-10" />
               <h1 className="mt-4 max-w-lg text-4xl font-extrabold leading-tight text-white">
-                Groceries for today&apos;s table, delivered the same day.
+                Groceries you love, delivered to you.
               </h1>
             </div>
             <p className="max-w-md text-sm leading-7 text-slate-200">
@@ -72,7 +71,8 @@ export function LoginPage() {
 
         <section className="panel px-6 py-8 sm:px-8">
           <div className="mb-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
+            <BrandLogo className="mb-5 h-12 w-44" imageClassName="h-10" />
+            <p className="brand-kicker">
               Welcome back
             </p>
             <h2 className="mt-2 text-3xl font-bold text-ink">Sign in to D&apos;Cart</h2>
@@ -118,14 +118,14 @@ export function LoginPage() {
           </form>
 
           <p className="mt-4 text-sm text-slate-500">
-            <Link to="/forgot-password" className="font-semibold text-brand-700">
+            <Link to="/forgot-password" className="font-semibold text-brand-600">
               Forgot your password?
             </Link>
           </p>
 
           <p className="mt-6 text-sm text-slate-500">
             New customer?{" "}
-            <Link to="/register" className="font-semibold text-brand-700">
+            <Link to="/register" className="font-semibold text-brand-600">
               Create an account
             </Link>
           </p>

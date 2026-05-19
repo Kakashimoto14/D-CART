@@ -237,6 +237,7 @@ export function CustomerProvider({ children }) {
   const registerOrder = useCallback((order) => {
     window.sessionStorage.setItem(LAST_ORDER_KEY, String(order.id));
     setActiveOrder(order);
+    setCart(buildEmptyCart());
   }, []);
 
   const cartCount = useMemo(

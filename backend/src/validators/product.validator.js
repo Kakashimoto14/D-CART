@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(500)
+  .refine((value) => /^https?:\/\//i.test(value), "Image URL must start with http or https.")
+  .optional()
+  .or(z.literal("").transform(() => null))
+  .nullable();
+
 export const productIdParamSchema = z.object({
   id: z.coerce.number().int().positive()
 });
@@ -7,7 +17,7 @@ export const productIdParamSchema = z.object({
 export const createProductSchema = z.object({
   name: z.string().min(2).max(150),
   description: z.string().max(5000).optional(),
-  image: z.string().max(500).optional(),
+  image: imageUrlSchema,
   price: z.number().positive(),
   stock: z.number().int().nonnegative(),
   unit: z.string().min(1).max(20).optional(),

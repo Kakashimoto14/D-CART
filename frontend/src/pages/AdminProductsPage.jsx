@@ -1,3 +1,4 @@
+import { ImageIcon, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { categoryApi } from "../api/categoryApi";
 import { productApi } from "../api/productApi";
@@ -8,13 +9,18 @@ import {
   SectionCard
 } from "../components/admin/AdminPrimitives.jsx";
 import { LoadingState } from "../components/common/LoadingState";
+import { getApiErrorMessage } from "../utils/apiError";
 import { currency } from "../utils/format";
 
 const initialForm = {
   id: null,
   name: "",
+  description: "",
+  image: "",
   price: "",
   stock: "",
+  unit: "pc",
+  barcode: "",
   categoryId: ""
 };
 
@@ -23,6 +29,7 @@ export function AdminProductsPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
   const [success, setSuccess] = useState("");
   const [query, setQuery] = useState("");
   const [productForm, setProductForm] = useState(initialForm);
@@ -31,14 +38,37 @@ export function AdminProductsPage() {
   const loadData = useCallback(async () => {
     try {
       setError("");
-      const [productResult, categoryResult] = await Promise.all([
+      setCategoryError("");
+      const [productResponse, categoryResponse] = await Promise.allSettled([
         productApi.list(),
-        categoryApi.list()
+        categoryApi.list({ includeInactive: true })
       ]);
-      setProducts(productResult.products);
-      setCategories(categoryResult);
+
+      if (productResponse.status === "fulfilled") {
+        setProducts(productResponse.value?.products || []);
+      } else {
+        setProducts([]);
+        setError(
+          getApiErrorMessage(
+            productResponse.reason,
+            "Products could not be loaded. Please try again."
+          )
+        );
+      }
+
+      if (categoryResponse.status === "fulfilled") {
+        setCategories(categoryResponse.value || []);
+      } else {
+        setCategories([]);
+        setCategoryError(
+          getApiErrorMessage(
+            categoryResponse.reason,
+            "Categories could not be loaded. Please try again."
+          )
+        );
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load products.");
+      setError(getApiErrorMessage(requestError, "Products could not be loaded. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -71,8 +101,12 @@ export function AdminProductsPage() {
 
     const payload = {
       name: productForm.name,
+      description: productForm.description || undefined,
+      image: productForm.image || null,
       price: Number(productForm.price),
       stock: Number(productForm.stock),
+      unit: productForm.unit || "pc",
+      barcode: productForm.barcode || null,
       categoryId: Number(productForm.categoryId)
     };
 
@@ -87,7 +121,7 @@ export function AdminProductsPage() {
       resetForm();
       await loadData();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to save product.");
+      setError(getApiErrorMessage(requestError, "Unable to save product."));
     } finally {
       setSaving(false);
     }
@@ -103,7 +137,7 @@ export function AdminProductsPage() {
       setSuccess(`Removed product #${productId}.`);
       await loadData();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to delete product.");
+      setError(getApiErrorMessage(requestError, "Unable to delete product."));
     }
   };
 
@@ -120,6 +154,7 @@ export function AdminProductsPage() {
       />
 
       {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
+      {categoryError ? <p className="text-sm font-medium text-amber-700">{categoryError}</p> : null}
       {success ? <p className="text-sm font-medium text-emerald-600">{success}</p> : null}
 
       <div className="grid gap-6 2xl:grid-cols-[1.1fr_0.9fr]">
@@ -131,45 +166,63 @@ export function AdminProductsPage() {
               searchPlaceholder="Search products, barcode, or category"
             />
 
-            <div className="space-y-3">
+            <div className="grid gap-4 lg:grid-cols-2">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="rounded-[22px] border border-slate-100 bg-slate-50/70 p-4 transition hover:-translate-y-0.5 hover:shadow-sm"
+                  className="overflow-hidden rounded-[22px] border border-slate-100 bg-white transition hover:-translate-y-0.5 hover:shadow-sm"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
+                  <div className="grid gap-4 sm:grid-cols-[130px_1fr]">
+                    <div className="h-32 bg-brand-50 sm:h-full">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grocery-placeholder flex h-full items-center justify-center">
+                          <ImageIcon className="h-8 w-8 text-brand-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
                       <div className="flex flex-wrap items-center gap-3">
                         <p className="text-lg font-semibold text-slate-900">{product.name}</p>
-                        <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700">
+                        <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-600">
                           {product.category?.name || "Uncategorized"}
                         </span>
                       </div>
+                      <p className="mt-2 min-h-10 overflow-hidden text-sm leading-5 text-slate-500">
+                        {product.description || "No description yet."}
+                      </p>
                       <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
-                        <span>Price: {currency(product.price)}</span>
+                        <span>Price: {currency(product.price)} / {product.unit || "pc"}</span>
                         <span>Stock: {product.stock}</span>
                         {product.barcode ? <span>Barcode: {product.barcode}</span> : null}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        className="btn-secondary px-4 py-2"
-                        onClick={() =>
-                          setProductForm({
-                            id: product.id,
-                            name: product.name,
-                            price: String(product.price),
-                            stock: String(product.stock),
-                            categoryId: String(product.categoryId || "")
-                          })
-                        }
-                      >
-                        Edit
-                      </button>
-                      <button type="button" className="btn-danger px-4 py-2" onClick={() => handleDelete(product.id)}>
-                        Delete
-                      </button>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          className="btn-secondary px-4 py-2"
+                          onClick={() =>
+                            setProductForm({
+                              id: product.id,
+                              name: product.name,
+                              description: product.description || "",
+                              image: product.image || "",
+                              price: String(product.price),
+                              stock: String(product.stock),
+                              unit: product.unit || "pc",
+                              barcode: product.barcode || "",
+                              categoryId: String(product.categoryId || "")
+                            })
+                          }
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </button>
+                        <button type="button" className="btn-danger px-4 py-2" onClick={() => handleDelete(product.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -194,6 +247,19 @@ export function AdminProductsPage() {
                   onChange={(event) => setProductForm((current) => ({ ...current, name: event.target.value }))}
                   required
                 />
+                <textarea
+                  className="field sm:col-span-2 min-h-24 resize-none"
+                  placeholder="Description"
+                  value={productForm.description}
+                  onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))}
+                />
+                <input
+                  className="field sm:col-span-2"
+                  type="url"
+                  placeholder="Product image URL"
+                  value={productForm.image}
+                  onChange={(event) => setProductForm((current) => ({ ...current, image: event.target.value }))}
+                />
                 <input
                   className="field"
                   type="number"
@@ -213,6 +279,18 @@ export function AdminProductsPage() {
                   value={productForm.stock}
                   onChange={(event) => setProductForm((current) => ({ ...current, stock: event.target.value }))}
                   required
+                />
+                <input
+                  className="field"
+                  placeholder="Unit, e.g. kg, pack, tray"
+                  value={productForm.unit}
+                  onChange={(event) => setProductForm((current) => ({ ...current, unit: event.target.value }))}
+                />
+                <input
+                  className="field"
+                  placeholder="Barcode (optional)"
+                  value={productForm.barcode}
+                  onChange={(event) => setProductForm((current) => ({ ...current, barcode: event.target.value }))}
                 />
                 <select
                   className="field sm:col-span-2"

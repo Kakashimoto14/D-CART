@@ -20,9 +20,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const restoreSession = async () => {
       try {
-        const response = token ? await authApi.getMe() : await authApi.refresh();
+        const response = await authApi.session();
 
-        if (!token && response?.token) {
+        if (!response?.authenticated) {
+          localStorage.removeItem(TOKEN_KEY);
+          startTransition(() => {
+            setToken(null);
+            setUser(null);
+          });
+          return;
+        }
+
+        if (response?.token) {
           localStorage.setItem(TOKEN_KEY, response.token);
           setToken(response.token);
         }

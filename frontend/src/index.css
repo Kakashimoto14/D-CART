@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -13,8 +13,8 @@
     @apply min-h-screen bg-cream font-sans text-slate-900 antialiased;
     background-image:
       radial-gradient(circle at top left, rgba(255, 107, 74, 0.12), transparent 24%),
-      radial-gradient(circle at top right, rgba(13, 27, 42, 0.08), transparent 20%),
-      linear-gradient(180deg, #fffaf5 0%, #fff6ee 100%);
+      radial-gradient(circle at top right, rgba(13, 27, 42, 0.06), transparent 20%),
+      linear-gradient(180deg, #fff6ee 0%, #fbf7f1 48%, #f7f2ec 100%);
   }
 
   #root {
@@ -49,7 +49,7 @@
 
 @layer components {
   .panel {
-    @apply rounded-[28px] border border-white/80 bg-[rgba(255,255,255,0.92)] shadow-panel backdrop-blur-sm;
+    @apply rounded-[24px] border border-white/80 bg-[rgba(255,255,255,0.94)] shadow-panel backdrop-blur-sm;
   }
 
   .field {
@@ -57,11 +57,11 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-2xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(255,107,74,0.22)] transition hover:-translate-y-0.5 hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-700;
+    @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-ink shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600;
   }
 
   .btn-danger {
@@ -69,14 +69,93 @@
   }
 
   .section-shell {
-    @apply rounded-[32px] border border-white/70 bg-[rgba(255,255,255,0.72)] p-5 shadow-panel backdrop-blur-xl sm:p-6;
+    @apply rounded-[24px] border border-white/80 bg-[rgba(255,255,255,0.78)] p-4 shadow-panel backdrop-blur-xl sm:p-6;
   }
 
   .chip {
-    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-brand-200 hover:text-brand-700;
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-600;
   }
 
   .chip-active {
-    @apply border-brand-200 bg-brand-50 text-brand-700;
+    @apply border-brand-300 bg-brand-500 text-white shadow-[0_10px_22px_rgba(255,107,74,0.22)];
+  }
+
+  .brand-kicker {
+    @apply text-xs font-bold uppercase tracking-[0.24em] text-brand-600;
+  }
+
+  .grocery-placeholder {
+    @apply bg-[radial-gradient(circle_at_30%_20%,rgba(255,107,74,0.18),transparent_34%),linear-gradient(135deg,#fff6ee_0%,#ffffff_55%,#fff0ea_100%)];
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  header,
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    display: none !important;
+  }
+
+  .report-page {
+    font-size: 11px !important;
+    color: #0d1b2a !important;
+  }
+
+  .report-page,
+  .report-page > * {
+    gap: 8px !important;
+  }
+
+  .report-page .panel,
+  .report-page section,
+  .report-page [class*="rounded"] {
+    border-radius: 6px !important;
+  }
+
+  .report-page .panel,
+  .report-page section {
+    padding: 10px !important;
+    page-break-inside: avoid;
+  }
+
+  .report-page table {
+    font-size: 10px !important;
+  }
+
+  .report-page th,
+  .report-page td {
+    padding: 4px 6px !important;
+  }
+
+  .recharts-responsive-container {
+    max-height: 210px !important;
+  }
+
+  main,
+  section,
+  .panel {
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body {
+    background: white !important;
   }
 }

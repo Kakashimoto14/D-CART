@@ -20,7 +20,7 @@ export function QuantityStepper({
         type="button"
         onClick={onDecrease}
         disabled={disabled || value <= min}
-        className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-brand-200 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 ${buttonClass}`}
+        className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-brand-200 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 ${buttonClass}`}
         aria-label="Decrease quantity"
       >
         <Minus className="h-4 w-4" />
@@ -30,7 +30,7 @@ export function QuantityStepper({
         type="button"
         onClick={onIncrease}
         disabled={disabled || (typeof max === "number" && value >= max)}
-        className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-brand-200 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 ${buttonClass}`}
+        className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-brand-200 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 ${buttonClass}`}
         aria-label="Increase quantity"
       >
         <Plus className="h-4 w-4" />

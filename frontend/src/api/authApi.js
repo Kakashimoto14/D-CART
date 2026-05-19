@@ -17,6 +17,10 @@ export const authApi = {
     const { data } = await client.post("/auth/refresh");
     return data;
   },
+  session: async () => {
+    const { data } = await client.get("/auth/session");
+    return data;
+  },
   logout: async () => {
     const { data } = await client.post("/auth/logout");
     return data;

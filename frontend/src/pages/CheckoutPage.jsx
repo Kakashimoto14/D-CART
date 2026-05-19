@@ -8,7 +8,7 @@ import { EmptyState } from "../components/common/EmptyState";
 import { LoadingState } from "../components/common/LoadingState";
 import { useAuth } from "../hooks/useAuth.js";
 import { useCustomer } from "../hooks/useCustomer.js";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getApiErrorMessage, getCheckoutErrorMessage } from "../utils/apiError";
 import { currency } from "../utils/format";
 
 const ADDRESS_KEY = "dcart_delivery_address";
@@ -94,7 +94,7 @@ export function CheckoutPage() {
           setForm((current) => ({ ...current, deliverySlotId: String(slotData[0].id) }));
         }
       } catch (requestError) {
-        setError(requestError.response?.data?.message || "Unable to load checkout schedules.");
+        setError(getApiErrorMessage(requestError, "Unable to load checkout schedules."));
       } finally {
         setLoadingSlots(false);
       }
@@ -229,12 +229,7 @@ export function CheckoutPage() {
       setSuccess(`Order #${order.id} has been placed successfully!`);
       navigate(`/orders/${order.id}`, { replace: true });
     } catch (requestError) {
-      setError(
-        getApiErrorMessage(
-          requestError,
-          "Unable to place the order. Please verify your location and try again."
-        )
-      );
+      setError(getCheckoutErrorMessage(requestError));
     } finally {
       setIsSubmitting(false);
     }
@@ -261,8 +256,8 @@ export function CheckoutPage() {
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
       <div className="space-y-4">
-        <div className="section-shell bg-[linear-gradient(135deg,rgba(255,255,255,0.92)_0%,rgba(255,240,234,0.95)_100%)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">Checkout</p>
+        <div className="section-shell bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,240,234,0.96)_100%)]">
+          <p className="brand-kicker">Checkout</p>
           <h2 className="mt-2 text-3xl font-bold text-ink">Simple guided checkout</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
             We keep the form short, the summary visible, and the final action obvious.
@@ -276,7 +271,7 @@ export function CheckoutPage() {
                 onClick={() => setStep(item.id)}
                 className={`rounded-[22px] border px-4 py-3 text-left transition ${
                   step === item.id
-                    ? "border-brand-200 bg-brand-50 text-brand-700"
+                    ? "border-brand-200 bg-brand-50 text-brand-600"
                     : "border-slate-200 bg-white text-slate-600"
                 }`}
               >
@@ -295,7 +290,7 @@ export function CheckoutPage() {
         {step === 1 ? (
           <section className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <MapPinned className="h-5 w-5" />
               </span>
               <div>
@@ -376,7 +371,7 @@ export function CheckoutPage() {
         {step === 2 ? (
           <section className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <Clock3 className="h-5 w-5" />
               </span>
               <div>
@@ -473,7 +468,7 @@ export function CheckoutPage() {
         {step === 3 ? (
           <section className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <CreditCard className="h-5 w-5" />
               </span>
               <div>
@@ -536,7 +531,7 @@ export function CheckoutPage() {
         {step === 4 ? (
           <section className="panel px-6 py-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
@@ -588,7 +583,7 @@ export function CheckoutPage() {
 
       <aside className="space-y-4">
         <div className="panel h-fit px-6 py-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700">
+          <p className="brand-kicker">
             Order summary
           </p>
           <div className="mt-5 space-y-4">

@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   forgotPassword,
   getMe,
+  getSession,
   googleLogin,
   login,
   logout,
@@ -56,6 +57,7 @@ router.post(
   asyncHandler(googleLogin)
 );
 router.post("/refresh", asyncHandler(refreshSession));
+router.get("/session", asyncHandler(getSession));
 router.post("/logout", asyncHandler(logout));
 router.post(
   "/forgot-password",

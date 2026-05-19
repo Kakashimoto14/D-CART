@@ -6,7 +6,9 @@ export const checkoutSchema = z.object({
   substitutionPreference: z
     .enum(["BEST_MATCH", "ASK_BEFORE_REPLACE", "NO_SUBSTITUTIONS"])
     .default("BEST_MATCH"),
-  paymentMethod: z.enum(["COD", "GCASH"]).default("COD"),
+  paymentMethod: z
+    .preprocess((value) => (value === "CASH" ? "COD" : value), z.enum(["COD", "GCASH"]))
+    .default("COD"),
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
   accuracyMeters: z.coerce.number().positive().max(10000).optional().nullable(),

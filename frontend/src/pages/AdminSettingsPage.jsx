@@ -107,7 +107,7 @@ export function AdminSettingsPage() {
             <div className="rounded-[20px] bg-slate-50/80 p-5">
               <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
               <p className="mt-1 text-sm text-slate-500">{user?.email}</p>
-              <p className="mt-3 inline-flex rounded-full bg-brand-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-brand-700">
+              <p className="mt-3 inline-flex rounded-full bg-brand-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-brand-600">
                 {user?.role === "ADMIN" ? "Administrator" : user?.role}
               </p>
             </div>

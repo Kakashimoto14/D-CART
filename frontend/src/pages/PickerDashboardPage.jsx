@@ -420,7 +420,7 @@ export function PickerDashboardPage() {
                 <strong className="text-slate-800">{order.pickProgress?.percent || 0}%</strong>
               </span>
               <span className="text-slate-500">
-                Total: <strong className="text-brand-700">{currency(order.total)}</strong>
+                Total: <strong className="text-brand-600">{currency(order.total)}</strong>
               </span>
               {order.deliverySlot ? (
                 <span className="text-slate-500">

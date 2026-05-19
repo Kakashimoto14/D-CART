@@ -81,7 +81,7 @@ export function AdminShellContent({ user, logout, links, utilityLinks }) {
         <div className="border-t border-white/70 bg-white/70 px-4 py-4 text-xs text-slate-400 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <p>D&apos;Cart admin workspace</p>
-            <button type="button" onClick={logout} className="font-semibold text-slate-500 transition hover:text-brand-700">
+            <button type="button" onClick={logout} className="font-semibold text-slate-500 transition hover:text-brand-600">
               Sign out
             </button>
           </div>

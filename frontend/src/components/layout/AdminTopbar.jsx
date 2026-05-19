@@ -9,7 +9,7 @@ export function AdminTopbar({ title, subtitle, user, onMenuClick }) {
             <button
               type="button"
               onClick={onMenuClick}
-              className="inline-flex rounded-2xl border border-slate-200 bg-white p-3 text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-700 xl:hidden"
+              className="inline-flex rounded-2xl border border-slate-200 bg-white p-3 text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-600 xl:hidden"
               aria-label="Open navigation"
             >
               <Menu className="h-5 w-5" />
@@ -28,14 +28,14 @@ export function AdminTopbar({ title, subtitle, user, onMenuClick }) {
           <div className="hidden items-center gap-3 lg:flex">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-700"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-600"
             >
               <Sparkles className="h-4 w-4" />
               Quick actions
             </button>
             <button
               type="button"
-              className="inline-flex rounded-2xl border border-slate-200 bg-white p-3 text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-700"
+              className="inline-flex rounded-2xl border border-slate-200 bg-white p-3 text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-600"
               aria-label="Notifications"
             >
               <Bell className="h-4 w-4" />

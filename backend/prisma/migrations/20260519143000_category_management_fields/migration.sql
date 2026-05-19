@@ -1,0 +1,4 @@
+ALTER TABLE "categories"
+  ADD COLUMN "description" VARCHAR(500),
+  ADD COLUMN "image" VARCHAR(500),
+  ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;

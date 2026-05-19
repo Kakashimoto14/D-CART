@@ -154,11 +154,14 @@ model User {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?   @db.VarChar(500)
+  image       String?   @db.VarChar(500)
+  isActive    Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("categories")
 }

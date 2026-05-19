@@ -11,6 +11,7 @@ export const notFoundHandler = (_req, res) => {
 };
 
 const ERROR_MESSAGES = {
+  CHECKOUT_FAILED: "Checkout could not be completed. Please try again.",
   CHECKOUT_TIMEOUT:
     "Checkout is taking longer than expected. Please try again. If you were charged, contact support with your order reference.",
   PAYMENT_FAILED:
@@ -24,8 +25,13 @@ const ERROR_MESSAGES = {
   UNKNOWN: "Something went wrong. Please try again or contact support if the problem continues."
 };
 
-const detectInternalCode = (error, statusCode) => {
+const detectInternalCode = (error, statusCode, req) => {
   const message = String(error.message || "");
+  const requestPath = req?.originalUrl || "";
+  const isCheckoutPath =
+    requestPath.includes("/orders/checkout") ||
+    requestPath.includes("/payment") ||
+    requestPath.includes("/paymongo");
 
   if (error.isOperational && error.code) return error.code;
   if (statusCode === 422 || error.name === "ZodError") return "VALIDATION_ERROR";
@@ -34,9 +40,13 @@ const detectInternalCode = (error, statusCode) => {
   if (statusCode === 404) return "NOT_FOUND";
   if (statusCode === 429) return "RATE_LIMITED";
   if (/insufficient.*stock|stock.*unavailable|out of stock/i.test(message)) return "OUT_OF_STOCK";
-  if (/transaction already closed|expired transaction|timeout.*transaction|prisma/i.test(message)) {
+  if (
+    isCheckoutPath &&
+    /transaction already closed|expired transaction|timeout.*transaction/i.test(message)
+  ) {
     return "CHECKOUT_TIMEOUT";
   }
+  if (requestPath.includes("/orders/checkout")) return "CHECKOUT_FAILED";
 
   return statusCode >= 500 ? "UNKNOWN" : "VALIDATION_ERROR";
 };
@@ -54,7 +64,7 @@ const getSafeMessage = (error, code, statusCode) => {
 
 export const errorHandler = (error, req, res, _next) => {
   const statusCode = error.statusCode || 500;
-  const code = detectInternalCode(error, statusCode);
+  const code = detectInternalCode(error, statusCode, req);
   const message = getSafeMessage(error, code, statusCode);
 
   logger[statusCode >= 500 ? "error" : "warn"](

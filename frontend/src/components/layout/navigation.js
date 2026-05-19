@@ -54,7 +54,7 @@ export const routeTitles = {
   "/admin/categories": {
     eyebrow: "Catalog",
     title: "Categories",
-    description: "Category management is reserved for the next rollout."
+    description: "Manage storefront groups, product counts, category images, and visibility."
   },
   "/admin/inventory": {
     eyebrow: "Stock",

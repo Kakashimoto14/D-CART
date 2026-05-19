@@ -11,6 +11,10 @@ export function CartPage() {
   const { cart, clearCart, isCartReady, removeCartItem, updateCartItem } = useCustomer();
   const [error, setError] = useState("");
   const [isMutating, setIsMutating] = useState(false);
+  const unavailableItems = useMemo(
+    () => cart?.items?.filter((item) => Number(item.product.stock || 0) < Number(item.quantity || 0)) || [],
+    [cart?.items]
+  );
 
   const applyMutation = async (action) => {
     setIsMutating(true);
@@ -43,18 +47,13 @@ export function CartPage() {
     );
   }
 
-  const unavailableItems = useMemo(
-    () => cart.items.filter((item) => Number(item.product.stock || 0) < Number(item.quantity || 0)),
-    [cart.items]
-  );
-
   return (
     <section className="grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
       <div className="space-y-4">
-        <div className="section-shell bg-[linear-gradient(135deg,rgba(255,255,255,0.92)_0%,rgba(255,240,234,0.95)_100%)]">
+        <div className="section-shell bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,240,234,0.96)_100%)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
+              <p className="brand-kicker">
                 Cart
               </p>
               <h2 className="mt-2 text-3xl font-bold text-ink">Review your basket</h2>
@@ -105,11 +104,11 @@ export function CartPage() {
       <aside className="space-y-4">
         <div className="panel h-fit px-6 py-6">
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
               <ShoppingCart className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
+              <p className="brand-kicker">
                 Summary
               </p>
               <p className="text-sm text-slate-500">Your order total before delivery.</p>

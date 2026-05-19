@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 156" role="img" aria-labelledby="title desc">
+  <title id="title">D'Cart</title>
+  <desc id="desc">D'Cart grocery delivery logo</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 62h36l15 45h76l15-58H71" stroke="#FF6B4A" stroke-width="13"/>
+    <path d="M27 43h42M13 66h42M27 89h34" stroke="#FFB15C" stroke-width="10"/>
+  </g>
+  <circle cx="91" cy="127" r="12" fill="#0D1B2A"/>
+  <circle cx="139" cy="127" r="12" fill="#0D1B2A"/>
+  <path d="M103 39c11-16 34-5 24 13-7 11-18 18-24 24-6-6-17-13-24-24-10-18 13-29 24-13Z" fill="#FF6B4A"/>
+  <text x="202" y="92" fill="#0D1B2A" font-family="Poppins, Arial, sans-serif" font-size="74" font-weight="800" letter-spacing="-2">D&apos;Cart</text>
+  <text x="207" y="128" fill="#0D1B2A" font-family="Poppins, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="8">GROCERY. </text>
+  <text x="344" y="128" fill="#FF6B4A" font-family="Poppins, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="8">DELIVERED.</text>
+</svg>

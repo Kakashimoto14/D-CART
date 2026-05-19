@@ -2,6 +2,7 @@ import { env } from "../config/env.js";
 import { AuthService } from "../services/auth.service.js";
 import { GoogleAuthService } from "../services/googleAuth.service.js";
 import { buildRefreshTokenCookieOptions } from "../utils/authCookies.js";
+import { verifyAccessToken } from "../utils/jwt.js";
 
 const authService = new AuthService();
 const googleAuthService = new GoogleAuthService();
@@ -64,6 +65,53 @@ export const refreshSession = async (req, res) => {
     token: result.accessToken,
     user: result.user
   });
+};
+
+export const getSession = async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const payload = verifyAccessToken(authHeader.split(" ")[1]);
+      const user = await authService.getCurrentUser(Number(payload.sub));
+
+      return res.status(200).json({
+        authenticated: true,
+        user
+      });
+    } catch (_error) {
+      // Fall through to the refresh cookie path below.
+    }
+  }
+
+  const refreshToken = req.cookies?.[env.refreshCookieName];
+  if (!refreshToken) {
+    return res.status(200).json({
+      authenticated: false,
+      user: null
+    });
+  }
+
+  try {
+    const result = await authService.rotateSession(refreshToken, {
+      ipAddress: req.ip,
+      userAgent: req.get("user-agent")
+    });
+
+    setRefreshCookie(res, result.refreshToken);
+
+    return res.status(200).json({
+      authenticated: true,
+      token: result.accessToken,
+      user: result.user
+    });
+  } catch (_error) {
+    res.clearCookie(env.refreshCookieName, buildRefreshTokenCookieOptions());
+    return res.status(200).json({
+      authenticated: false,
+      user: null
+    });
+  }
 };
 
 export const logout = async (req, res) => {

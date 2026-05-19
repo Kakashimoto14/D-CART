@@ -9,6 +9,7 @@ import { AuditService } from "./audit.service.js";
 const DEFAULT_RESERVATION_MINUTES = Number(process.env.INVENTORY_RESERVATION_TTL_MINUTES || 15);
 const DEFAULT_NEAR_EXPIRY_DAYS = 7;
 const auditService = new AuditService();
+const categorySummarySelect = { id: true, name: true };
 
 export class InventoryService {
   async enqueueReservationExpiry(reservationId, ttlMinutes) {
@@ -215,7 +216,9 @@ export class InventoryService {
       include: {
         product: {
           include: {
-            category: true
+            category: {
+              select: categorySummarySelect
+            }
           }
         },
         batches: {
@@ -247,7 +250,9 @@ export class InventoryService {
         include: {
           product: {
             include: {
-              category: true
+              category: {
+                select: categorySummarySelect
+              }
             }
           },
           batches: {
@@ -287,7 +292,9 @@ export class InventoryService {
       include: {
         product: {
           include: {
-            category: true
+            category: {
+              select: categorySummarySelect
+            }
           }
         },
         batches: {

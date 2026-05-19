@@ -1,6 +1,7 @@
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { ROLES } from "../constants/roles.js";
+import { logger } from "../infrastructure/logger/logger.js";
 import { buildUserEntity } from "../models/buildUserEntity.js";
 import { Delivery } from "../models/Delivery.js";
 import { Order } from "../models/Order.js";
@@ -23,6 +24,18 @@ const receiptService = new ReceiptService();
 const inventoryService = new InventoryService();
 const deliveryPricingService = new DeliveryPricingService();
 const notificationService = new NotificationService();
+const categorySummarySelect = { id: true, name: true };
+
+const runAfterCheckoutResponse = (task, context) => {
+  setImmediate(() => {
+    Promise.resolve()
+      .then(task)
+      .catch((error) => {
+        // Non-critical post-checkout work must never keep the customer waiting.
+        logger.error({ err: error, ...context }, "Post-checkout task failed.");
+      });
+  });
+};
 
 const orderInclude = {
   items: {
@@ -163,7 +176,9 @@ export class OrderService {
           include: {
             product: {
               include: {
-                category: true
+                category: {
+                  select: categorySummarySelect
+                }
               }
             }
           }
@@ -247,7 +262,9 @@ export class OrderService {
               include: {
                 product: {
                   include: {
-                    category: true
+                    category: {
+                      select: categorySummarySelect
+                    }
                   }
                 }
               }
@@ -408,7 +425,10 @@ export class OrderService {
       status: result.status,
       type: "created"
     });
-    await notificationService.enqueueOrderCreated(result.id);
+    runAfterCheckoutResponse(
+      () => notificationService.enqueueOrderCreated(result.id),
+      { orderId: result.id, task: "customer.order.created" }
+    );
 
     return result;
   }
@@ -796,27 +816,30 @@ export class OrderService {
       return order;
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: order.id },
-        data: {
-          paymentStatus: "PAID",
-          paymentReference: paymentReference || order.paymentReference,
-          paidAt: new Date(),
-          paymentProvider: "PAYMONGO"
-        }
-      });
-
-      if (order.inventoryReservationId) {
-        const reservation = await tx.inventoryReservation.findUnique({
-          where: { id: order.inventoryReservationId }
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: "PAID",
+            paymentReference: paymentReference || order.paymentReference,
+            paidAt: new Date(),
+            paymentProvider: "PAYMONGO"
+          }
         });
 
-        if (reservation?.status === "ACTIVE") {
-          await inventoryService.commitReservation(order.inventoryReservationId, {}, tx);
+        if (order.inventoryReservationId) {
+          const reservation = await tx.inventoryReservation.findUnique({
+            where: { id: order.inventoryReservationId }
+          });
+
+          if (reservation?.status === "ACTIVE") {
+            await inventoryService.commitReservation(order.inventoryReservationId, {}, tx);
+          }
         }
-      }
-    });
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     const updated = await prisma.order.findUnique({
       where: { id: order.id }
@@ -828,7 +851,10 @@ export class OrderService {
       status: updated.status,
       type: "payment_paid"
     });
-    await notificationService.enqueuePaymentPaid(updated.id);
+    runAfterCheckoutResponse(
+      () => notificationService.enqueuePaymentPaid(updated.id),
+      { orderId: updated.id, task: "customer.order.payment_paid" }
+    );
 
     return updated;
   }
@@ -842,46 +868,49 @@ export class OrderService {
       return order;
     }
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      if (order.inventoryReservationId) {
-        const reservation = await tx.inventoryReservation.findUnique({
-          where: { id: order.inventoryReservationId }
-        });
+    const updatedOrder = await prisma.$transaction(
+      async (tx) => {
+        if (order.inventoryReservationId) {
+          const reservation = await tx.inventoryReservation.findUnique({
+            where: { id: order.inventoryReservationId }
+          });
 
-        if (reservation?.status === "ACTIVE") {
-          await inventoryService.releaseReservation(
-            order.inventoryReservationId,
-            {
-              status: nextPaymentStatus === "EXPIRED" ? "EXPIRED" : "RELEASED",
-              reason:
-                nextPaymentStatus === "EXPIRED"
-                  ? "Payment expired before reservation commit."
-                  : "Payment failed before reservation commit."
-            },
-            tx
-          );
+          if (reservation?.status === "ACTIVE") {
+            await inventoryService.releaseReservation(
+              order.inventoryReservationId,
+              {
+                status: nextPaymentStatus === "EXPIRED" ? "EXPIRED" : "RELEASED",
+                reason:
+                  nextPaymentStatus === "EXPIRED"
+                    ? "Payment expired before reservation commit."
+                    : "Payment failed before reservation commit."
+              },
+              tx
+            );
+          }
         }
-      }
 
-      if (order.deliverySlotId) {
-        await deliverySlotService.releaseSlot(order.deliverySlotId, tx);
-      }
-
-      if (order.delivery) {
-        await tx.delivery.update({
-          where: { id: order.delivery.id },
-          data: { status: "CANCELLED" }
-        });
-      }
-
-      return tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: "CANCELLED",
-          paymentStatus: nextPaymentStatus
+        if (order.deliverySlotId) {
+          await deliverySlotService.releaseSlot(order.deliverySlotId, tx);
         }
-      });
-    });
+
+        if (order.delivery) {
+          await tx.delivery.update({
+            where: { id: order.delivery.id },
+            data: { status: "CANCELLED" }
+          });
+        }
+
+        return tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: "CANCELLED",
+            paymentStatus: nextPaymentStatus
+          }
+        });
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     if (updatedOrder) {
       emitOrderChanged({
@@ -890,7 +919,10 @@ export class OrderService {
         status: updatedOrder.status,
         type: nextPaymentStatus === "FAILED" ? "payment_failed" : "payment_expired"
       });
-      await notificationService.enqueueOrderStatus(updatedOrder.id, updatedOrder.status);
+      runAfterCheckoutResponse(
+        () => notificationService.enqueueOrderStatus(updatedOrder.id, updatedOrder.status),
+        { orderId: updatedOrder.id, task: "customer.order.status" }
+      );
     }
 
     return updatedOrder;

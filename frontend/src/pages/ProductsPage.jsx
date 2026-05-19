@@ -8,6 +8,7 @@ import { ProductGridSkeleton } from "../components/customer/ProductGridSkeleton.
 import { ProductCard } from "../components/products/ProductCard";
 import { useCustomer } from "../hooks/useCustomer.js";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
+import { getApiErrorMessage } from "../utils/apiError.js";
 
 export function ProductsPage() {
   const { addToCart, cart, removeCartItem, updateCartItem } = useCustomer();
@@ -22,17 +23,23 @@ export function ProductsPage() {
 
   const loadProducts = useCallback(async () => {
     try {
-      const [productResult, categoryResult] = await Promise.all([
+      const [productResponse, categoryResponse] = await Promise.allSettled([
         productApi.list(),
         categoryApi.list()
       ]);
 
       startTransition(() => {
-        setProducts(productResult.products);
-        setCategories(categoryResult);
+        setProducts(productResponse.status === "fulfilled" ? productResponse.value.products || [] : []);
+        setCategories(categoryResponse.status === "fulfilled" ? categoryResponse.value || [] : []);
       });
+
+      if (productResponse.status === "rejected") {
+        setError(getApiErrorMessage(productResponse.reason, "Products could not be loaded. Please try again."));
+      } else if (categoryResponse.status === "rejected") {
+        setError(getApiErrorMessage(categoryResponse.reason, "Categories could not be loaded. Please try again."));
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load products.");
+      setError(getApiErrorMessage(requestError, "Products could not be loaded. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -54,7 +61,7 @@ export function ProductsPage() {
     try {
       await action();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to update your cart.");
+      setError(getApiErrorMessage(requestError, "Unable to update your cart."));
     } finally {
       setBusyProductId(null);
     }
@@ -80,10 +87,10 @@ export function ProductsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="section-shell overflow-hidden bg-[linear-gradient(135deg,rgba(255,255,255,0.92)_0%,rgba(255,240,234,0.96)_100%)]">
+      <div className="section-shell overflow-hidden bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,240,234,0.96)_100%)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
+            <p className="brand-kicker">
               Shop
             </p>
             <h2 className="mt-2 text-3xl font-bold text-ink">Fresh grocery essentials</h2>
@@ -103,15 +110,15 @@ export function ProductsPage() {
               type="search"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search products, categories, or pantry staples"
+              placeholder="Search products..."
               className="field pl-12"
             />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
               onClick={() => setSelectedCategory("All")}
-              className={`chip ${selectedCategory === "All" ? "chip-active" : ""}`}
+              className={`chip shrink-0 ${selectedCategory === "All" ? "chip-active" : ""}`}
             >
               All
             </button>
@@ -120,8 +127,13 @@ export function ProductsPage() {
                 key={category.id}
                 type="button"
                 onClick={() => setSelectedCategory(category.name)}
-                className={`chip ${selectedCategory === category.name ? "chip-active" : ""}`}
+                className={`chip shrink-0 gap-2 ${selectedCategory === category.name ? "chip-active" : ""}`}
               >
+                {category.image ? (
+                  <img src={category.image} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-brand-500" />
+                )}
                 {category.name}
               </button>
             ))}
@@ -161,7 +173,7 @@ export function ProductsPage() {
             </p>
             <p className="text-sm text-slate-500">Tap any card to add or adjust quantities</p>
           </div>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product) => {
               const quantity = cartQuantities.get(product.id) || 0;
 

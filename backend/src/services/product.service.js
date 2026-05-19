@@ -49,7 +49,12 @@ export class ProductService {
 
   buildInclude(includeBatches = false) {
     return {
-      category: true,
+      category: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
       inventoryItem: {
         include: {
           batches: includeBatches
@@ -128,9 +133,7 @@ export class ProductService {
           barcode: payload.barcode,
           categoryId: payload.categoryId
         },
-        include: {
-          category: true
-        }
+        include: this.buildInclude(false)
       });
 
       await inventoryService.createInventoryForNewProduct(product, payload, tx);
@@ -171,12 +174,12 @@ export class ProductService {
         where: { id: productId },
         data: {
           name: payload.name ?? existing.name,
-          description: payload.description ?? existing.description,
-          image: payload.image ?? existing.image,
+          description: payload.description === undefined ? existing.description : payload.description,
+          image: payload.image === undefined ? existing.image : payload.image,
           price: payload.price ?? existing.price,
           unit: payload.unit ?? existing.unit,
           weight: payload.weight ?? existing.weight,
-          barcode: payload.barcode ?? existing.barcode,
+          barcode: payload.barcode === undefined ? existing.barcode : payload.barcode,
           categoryId: payload.categoryId ?? existing.categoryId
         },
         include: this.buildInclude(true)
@@ -218,7 +221,8 @@ export class ProductService {
 
   async ensureCategoryExists(categoryId) {
     const category = await prisma.category.findUnique({
-      where: { id: categoryId }
+      where: { id: categoryId },
+      select: { id: true }
     });
 
     if (!category) {

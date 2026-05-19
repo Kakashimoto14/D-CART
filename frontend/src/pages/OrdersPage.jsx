@@ -122,7 +122,7 @@ export function OrdersPage() {
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-600">
+        <p className="brand-kicker">
           Order tracking
         </p>
         <h2 className="mt-2 text-3xl font-bold text-ink">Your grocery orders</h2>
@@ -133,7 +133,7 @@ export function OrdersPage() {
 
       {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
       {liveMessage ? (
-        <p className="text-sm font-medium text-brand-700">
+        <p className="text-sm font-medium text-brand-600">
           Live updates {isConnected ? "connected" : "reconnecting"}: {liveMessage}
         </p>
       ) : (
@@ -163,14 +163,14 @@ export function OrdersPage() {
                     </div>
                     <p className="mt-2 text-sm text-slate-500">{formatDateTime(order.createdAt)}</p>
                     <p className="mt-2 text-sm text-slate-500">
-                      Payment: {order.paymentMethod === "GCASH" ? "GCash via PayMongo" : "Cash on Delivery"} • {order.paymentStatus}
+                      Payment: {order.paymentMethod === "GCASH" ? "GCash via PayMongo" : "Cash on Delivery"} - {order.paymentStatus}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="text-lg font-bold text-slate-900">{currency(order.total)}</p>
                     <Link
                       to={`/orders/${order.id}`}
-                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-600"
                     >
                       Track
                     </Link>
@@ -189,7 +189,7 @@ export function OrdersPage() {
                         type="button"
                         onClick={() => handleDownloadReceipt(order.id)}
                         disabled={receiptLoadingId === order.id}
-                        className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 disabled:opacity-50"
+                        className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-600 transition hover:bg-brand-100 disabled:opacity-50"
                       >
                         {receiptLoadingId === order.id ? "Preparing..." : "Download receipt"}
                       </button>

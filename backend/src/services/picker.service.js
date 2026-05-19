@@ -6,6 +6,7 @@ import { NotificationService } from "./notification.service.js";
 
 const inventoryService = new InventoryService();
 const notificationService = new NotificationService();
+const categorySummarySelect = { id: true, name: true };
 
 export class PickerService {
   mapPickerOrder(order) {
@@ -72,7 +73,13 @@ export class PickerService {
         user: { select: { id: true, name: true, email: true } },
         items: {
           include: {
-            product: { include: { category: true } },
+            product: {
+              include: {
+                category: {
+                  select: categorySummarySelect
+                }
+              }
+            },
             substituteProduct: true
           }
         },
