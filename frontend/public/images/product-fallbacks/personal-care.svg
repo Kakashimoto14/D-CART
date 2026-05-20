@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Personal care">
+  <rect width="640" height="420" fill="#fdf2f8"/>
+  <rect x="214" y="86" width="200" height="284" rx="44" fill="#fbcfe8" stroke="#831843" stroke-width="14"/>
+  <path d="M254 64h120v48H254z" fill="#f9a8d4" stroke="#831843" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M252 186h124v88H252z" fill="#fff1f2" stroke="#831843" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M478 100c34 42 34 84 0 126-34-42-34-84 0-126z" fill="#f472b6" opacity=".28"/>
+</svg>

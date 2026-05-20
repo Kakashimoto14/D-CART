@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Condiments and sauces">
+  <rect width="640" height="420" fill="#ecfdf5"/>
+  <path d="M250 70h140v58l34 46v160c0 26-21 48-48 48H264c-27 0-48-22-48-48V174l34-46V70z" fill="#bbf7d0" stroke="#14532d" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M252 214h136v88H252z" fill="#fefce8" stroke="#14532d" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M274 70h92" stroke="#14532d" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="498" cy="106" r="76" fill="#22c55e" opacity=".16"/>
+</svg>

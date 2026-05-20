@@ -3,6 +3,36 @@ import { authApi } from "../../api/authApi";
 
 const GOOGLE_SCRIPT_ID = "google-identity-services";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const GOOGLE_AUTHORIZED_ORIGINS = (import.meta.env.VITE_GOOGLE_AUTHORIZED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isLocalOrigin = () =>
+  ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+
+const canInitializeGoogleSignIn = () => {
+  if (!GOOGLE_CLIENT_ID) {
+    return {
+      enabled: false,
+      message: "Google sign-in is hidden until VITE_GOOGLE_CLIENT_ID is configured."
+    };
+  }
+
+  if (
+    isLocalOrigin() &&
+    GOOGLE_AUTHORIZED_ORIGINS.length > 0 &&
+    !GOOGLE_AUTHORIZED_ORIGINS.includes(window.location.origin)
+  ) {
+    return {
+      enabled: false,
+      message:
+        "Google sign-in is disabled on this local origin. Add it to VITE_GOOGLE_AUTHORIZED_ORIGINS or remove that optional local allowlist."
+    };
+  }
+
+  return { enabled: true, message: "" };
+};
 
 const loadGoogleIdentityScript = () =>
   new Promise((resolve, reject) => {
@@ -43,8 +73,9 @@ export function GoogleSignInButton({ onSuccess, onError, text = "signin_with" })
   }, [onError, onSuccess]);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      setHelperMessage("Google sign-in is hidden until VITE_GOOGLE_CLIENT_ID is configured.");
+    const googleConfig = canInitializeGoogleSignIn();
+    if (!googleConfig.enabled) {
+      setHelperMessage(googleConfig.message);
       return;
     }
 

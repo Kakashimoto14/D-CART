@@ -94,6 +94,7 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
     description: "Operational workspace"
   };
   const isAdmin = user?.role === "ADMIN";
+  const showGlobalSearch = isAdmin && !location.pathname.startsWith("/admin/products");
 
   const quickActions = [
     { label: "Add product", to: "/admin/products" },
@@ -105,7 +106,7 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
   ];
 
   useEffect(() => {
-    if (!isAdmin || searchTerm.trim().length < 2) {
+    if (!showGlobalSearch || searchTerm.trim().length < 2) {
       setSearchResults(null);
       return undefined;
     }
@@ -119,7 +120,7 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [isAdmin, searchTerm]);
+  }, [searchTerm, showGlobalSearch]);
 
   const handleOpenNotifications = async () => {
     const nextOpen = !notificationsOpen;
@@ -274,33 +275,35 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="max-w-3xl text-sm text-slate-500">{meta.description}</p>
-          <label className="relative block w-full max-w-xl">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="field pl-11"
-              placeholder="Search workflows, products, orders, or records"
-            />
-            {flatSearchResults.length > 0 ? (
-              <div className="absolute left-0 right-0 top-12 z-30 max-h-80 overflow-y-auto rounded-[20px] border border-slate-100 bg-white p-2 shadow-xl">
-                {flatSearchResults.map((item) => (
-                  <Link
-                    key={`${item.group}-${item.id}`}
-                    to={item.to}
-                    onClick={() => {
-                      setSearchTerm("");
-                      setSearchResults(null);
-                    }}
-                    className="block rounded-2xl px-4 py-3 hover:bg-slate-50"
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{item.group} - {item.detail}</p>
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </label>
+          {showGlobalSearch ? (
+            <label className="relative block w-full max-w-xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="field pl-11"
+                placeholder="Search workflows, products, orders, or records"
+              />
+              {flatSearchResults.length > 0 ? (
+                <div className="absolute left-0 right-0 top-12 z-30 max-h-80 overflow-y-auto rounded-[20px] border border-slate-100 bg-white p-2 shadow-xl">
+                  {flatSearchResults.map((item) => (
+                    <Link
+                      key={`${item.group}-${item.id}`}
+                      to={item.to}
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSearchResults(null);
+                      }}
+                      className="block rounded-2xl px-4 py-3 hover:bg-slate-50"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{item.group} - {item.detail}</p>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </label>
+          ) : null}
         </div>
       </div>
     </header>

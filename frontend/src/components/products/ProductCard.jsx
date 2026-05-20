@@ -2,6 +2,7 @@ import { ImageIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { QuantityStepper } from "../customer/QuantityStepper.jsx";
 import { currency } from "../../utils/format";
+import { getProductImageUrl } from "../../utils/productImages";
 
 const getAvailability = (stock) => {
   if (stock <= 0) {
@@ -33,7 +34,8 @@ export function ProductCard({
   busy
 }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const hasImage = Boolean(product.image) && !imageFailed;
+  const imageUrl = getProductImageUrl(product, { forceFallback: imageFailed });
+  const hasImage = Boolean(imageUrl);
   const isWholesale =
     product.description?.toLowerCase().includes("wholesale-ready") ||
     ["sack", "case", "box"].includes(String(product.unit || "").toLowerCase());
@@ -43,7 +45,7 @@ export function ProductCard({
 
   useEffect(() => {
     setImageFailed(false);
-  }, [product.image]);
+  }, [product.category?.name, product.image]);
 
   const initials = product.name
     .split(" ")
@@ -64,7 +66,7 @@ export function ProductCard({
       <div className="relative h-24 overflow-hidden bg-mesh-soft sm:h-28">
         {hasImage ? (
           <img
-            src={product.image}
+            src={imageUrl}
             alt={product.name}
             className="h-full w-full object-cover"
             loading="lazy"

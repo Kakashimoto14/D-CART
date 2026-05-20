@@ -34,6 +34,7 @@ const detectInternalCode = (error, statusCode, req) => {
     requestPath.includes("/paymongo");
 
   if (error.isOperational && error.code) return error.code;
+  if (error.name === "MulterError") return "VALIDATION_ERROR";
   if (statusCode === 422 || error.name === "ZodError") return "VALIDATION_ERROR";
   if (statusCode === 401) return "UNAUTHORIZED";
   if (statusCode === 403) return "FORBIDDEN";
@@ -53,6 +54,9 @@ const detectInternalCode = (error, statusCode, req) => {
 
 const getSafeMessage = (error, code, statusCode) => {
   if (code === "VALIDATION_ERROR") return ERROR_MESSAGES.VALIDATION_ERROR;
+  if (error.name === "MulterError" && error.code === "LIMIT_FILE_SIZE") {
+    return "Image must be 5MB or smaller.";
+  }
   if (ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
 
   if (error.isOperational && statusCode < 500) {

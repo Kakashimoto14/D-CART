@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Frozen goods">
+  <rect width="640" height="420" fill="#f0f9ff"/>
+  <rect x="178" y="92" width="284" height="248" rx="34" fill="#bae6fd" stroke="#075985" stroke-width="14"/>
+  <path d="M320 136v160M252 176l136 80M388 176l-136 80" stroke="#075985" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="320" cy="216" r="34" fill="#e0f2fe" stroke="#075985" stroke-width="10"/>
+  <circle cx="506" cy="86" r="72" fill="#38bdf8" opacity=".16"/>
+</svg>

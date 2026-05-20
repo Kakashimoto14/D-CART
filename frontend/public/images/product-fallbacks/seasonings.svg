@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Seasonings">
+  <rect width="640" height="420" fill="#f5f3ff"/>
+  <rect x="182" y="116" width="276" height="222" rx="32" fill="#ddd6fe" stroke="#4c1d95" stroke-width="14"/>
+  <path d="M214 164h212v78H214z" fill="#fff7ed" stroke="#4c1d95" stroke-width="10"/>
+  <circle cx="260" cy="288" r="14" fill="#7c3aed"/>
+  <circle cx="320" cy="288" r="14" fill="#7c3aed"/>
+  <circle cx="380" cy="288" r="14" fill="#7c3aed"/>
+  <path d="M230 96h180" stroke="#4c1d95" stroke-width="18" stroke-linecap="round"/>
+</svg>

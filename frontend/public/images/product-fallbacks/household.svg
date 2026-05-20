@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Household essentials">
+  <rect width="640" height="420" fill="#f8fafc"/>
+  <path d="M138 218l182-136 182 136v134H138V218z" fill="#e2e8f0" stroke="#111827" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M248 352V234h144v118" fill="#fff" stroke="#111827" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M102 226L320 64l218 162" stroke="#111827" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="494" cy="96" r="66" fill="#94a3b8" opacity=".2"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Snacks">
+  <rect width="640" height="420" fill="#fff1df"/>
+  <circle cx="520" cy="78" r="84" fill="#fb923c" opacity=".22"/>
+  <path d="M164 94h278l-30 250H194L164 94z" fill="#fb923c" stroke="#9a3412" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M188 122h230l-18 72H206l-18-72z" fill="#fed7aa"/>
+  <circle cx="250" cy="252" r="36" fill="#ffedd5" stroke="#9a3412" stroke-width="8"/>
+  <circle cx="330" cy="270" r="42" fill="#ffedd5" stroke="#9a3412" stroke-width="8"/>
+  <path d="M200 344h212" stroke="#9a3412" stroke-width="14" stroke-linecap="round"/>
+</svg>

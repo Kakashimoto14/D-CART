@@ -7,8 +7,25 @@ import { addStoreDays, startOfStoreDay } from "../src/utils/storeTime.js";
 
 const prisma = new PrismaClient();
 
-const placeholder = (label, bg = "fff3ee", fg = "0d1b2a") =>
-  `https://placehold.co/600x400/${bg}/${fg}.png?text=${encodeURIComponent(label)}`;
+const fallbackImages = {
+  "Rice & Grains": "/images/product-fallbacks/rice.svg",
+  "Snacks / Chichirya": "/images/product-fallbacks/snacks.svg",
+  "Canned Goods": "/images/product-fallbacks/canned-goods.svg",
+  "Noodles & Instant Food": "/images/product-fallbacks/noodles.svg",
+  "Condiments & Sauces": "/images/product-fallbacks/condiments.svg",
+  "Seasonings & Cooking Ingredients": "/images/product-fallbacks/seasonings.svg",
+  Beverages: "/images/product-fallbacks/beverages.svg",
+  "Alcoholic Beverages": "/images/product-fallbacks/alcohol.svg",
+  "Personal Care": "/images/product-fallbacks/personal-care.svg",
+  "Laundry & Cleaning": "/images/product-fallbacks/cleaning.svg",
+  "Household Essentials": "/images/product-fallbacks/household.svg",
+  "Candies & Sweets": "/images/product-fallbacks/candies.svg",
+  "Baby & Kids": "/images/product-fallbacks/baby.svg",
+  "Frozen / Chilled Goods": "/images/product-fallbacks/frozen.svg"
+};
+
+const fallbackImageFor = (categoryName) =>
+  fallbackImages[categoryName] || "/images/product-fallbacks/grocery.svg";
 
 const suppliers = {
   default: "Decolores Main Supplier",
@@ -23,85 +40,85 @@ const categories = [
   {
     name: "Rice & Grains",
     description: "Bigas options by kilo, small pack, and sack for daily meals and family stock-up.",
-    image: placeholder("Rice & Grains", "fef3c7", "713f12"),
+    image: fallbackImageFor("Rice & Grains"),
     isActive: true
   },
   {
     name: "Snacks / Chichirya",
     description: "Pinoy chips, crackers, biscuits, and chichirya for merienda and sari-sari baskets.",
-    image: placeholder("Snacks", "ffedd5", "9a3412"),
+    image: fallbackImageFor("Snacks / Chichirya"),
     isActive: true
   },
   {
     name: "Canned Goods",
     description: "Shelf-stable sardines, tuna, corned beef, meat loaf, and easy ulam staples.",
-    image: placeholder("Canned Goods", "fee2e2", "991b1b"),
+    image: fallbackImageFor("Canned Goods"),
     isActive: true
   },
   {
     name: "Noodles & Instant Food",
     description: "Instant pancit canton, mami, cup noodles, and quick-cook meals.",
-    image: placeholder("Instant Food", "fef9c3", "854d0e"),
+    image: fallbackImageFor("Noodles & Instant Food"),
     isActive: true
   },
   {
     name: "Condiments & Sauces",
     description: "Toyo, suka, patis, ketchup, lechon sauce, oyster sauce, and everyday sauces.",
-    image: placeholder("Condiments", "dcfce7", "14532d"),
+    image: fallbackImageFor("Condiments & Sauces"),
     isActive: true
   },
   {
     name: "Seasonings & Cooking Ingredients",
     description: "Seasoning granules, MSG, spices, salt, sugar, cooking oil, and pantry helpers.",
-    image: placeholder("Seasonings", "ede9fe", "4c1d95"),
+    image: fallbackImageFor("Seasonings & Cooking Ingredients"),
     isActive: true
   },
   {
     name: "Beverages",
     description: "Water, soft drinks, powdered drinks, coffee sachets, milk drinks, and tea.",
-    image: placeholder("Beverages", "dbeafe", "1e3a8a"),
+    image: fallbackImageFor("Beverages"),
     isActive: true
   },
   {
     name: "Alcoholic Beverages",
     description: "Age-restricted beer, gin, brandy, rum, and spirits. For future age verification.",
-    image: placeholder("Alcoholic Drinks", "e0e7ff", "312e81"),
+    image: fallbackImageFor("Alcoholic Beverages"),
     isActive: true
   },
   {
     name: "Personal Care",
     description: "Shampoo sachets, soap, alcohol, toothpaste, toothbrushes, deodorant, and hygiene items.",
-    image: placeholder("Personal Care", "fce7f3", "831843"),
+    image: fallbackImageFor("Personal Care"),
     isActive: true
   },
   {
     name: "Laundry & Cleaning",
     description: "Detergents, bleach, fabric conditioner, dishwashing supplies, sponges, and cleaners.",
-    image: placeholder("Cleaning", "ccfbf1", "134e4a"),
+    image: fallbackImageFor("Laundry & Cleaning"),
     isActive: true
   },
   {
     name: "Household Essentials",
     description: "Tissue, trash bags, disposable tableware, foil, containers, candles, matches, and batteries.",
-    image: placeholder("Household", "e5e7eb", "111827"),
+    image: fallbackImageFor("Household Essentials"),
     isActive: true
   },
   {
     name: "Candies & Sweets",
     description: "Candies, chocolates, lollipops, marshmallows, gummies, and assorted packs.",
-    image: placeholder("Candies", "ffe4e6", "9f1239"),
+    image: fallbackImageFor("Candies & Sweets"),
     isActive: true
   },
   {
     name: "Baby & Kids",
     description: "Diapers, wipes, baby powder, baby soap, and child-friendly daily needs.",
-    image: placeholder("Baby & Kids", "cffafe", "155e75"),
+    image: fallbackImageFor("Baby & Kids"),
     isActive: true
   },
   {
     name: "Frozen / Chilled Goods",
     description: "Cold-chain products are kept inactive until storage, delivery, and temperature handling are supported.",
-    image: placeholder("Frozen Goods", "e0f2fe", "075985"),
+    image: fallbackImageFor("Frozen / Chilled Goods"),
     isActive: false
   }
 ];
@@ -142,7 +159,7 @@ const product = ({
   reorderQty,
   unitCost: unitCost ?? Number((price * 0.78).toFixed(2)),
   expiresInDays,
-  image: placeholder(imageLabel || name, bg, fg),
+  image: fallbackImageFor(category),
   weight
 });
 

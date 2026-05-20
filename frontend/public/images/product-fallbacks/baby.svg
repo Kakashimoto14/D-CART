@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Baby and kids">
+  <rect width="640" height="420" fill="#ecfeff"/>
+  <circle cx="320" cy="168" r="92" fill="#a5f3fc" stroke="#155e75" stroke-width="14"/>
+  <path d="M208 322c22-72 202-72 224 0v24H208v-24z" fill="#cffafe" stroke="#155e75" stroke-width="14" stroke-linejoin="round"/>
+  <circle cx="288" cy="154" r="10" fill="#155e75"/>
+  <circle cx="352" cy="154" r="10" fill="#155e75"/>
+  <path d="M286 202c24 18 44 18 68 0" fill="none" stroke="#155e75" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="496" cy="96" r="70" fill="#22d3ee" opacity=".18"/>
+</svg>

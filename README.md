@@ -382,11 +382,13 @@ Set the frontend environment file based on `frontend/.env.example` and add:
 ```env
 VITE_API_URL=http://localhost:5000/api
 VITE_GOOGLE_CLIENT_ID=your_google_web_client_id
+VITE_GOOGLE_AUTHORIZED_ORIGINS=http://localhost:5173
 ```
 
 Google Login local notes:
 
 * Add `http://localhost:5173` as an authorized JavaScript origin in your Google Cloud OAuth client.
+* `VITE_GOOGLE_AUTHORIZED_ORIGINS` is an optional local allowlist. If you set it, keep it aligned with the origins configured in Google Cloud; if you leave it empty, Google Identity Services initializes normally with `VITE_GOOGLE_CLIENT_ID`.
 * Use a **Web application** client ID for Google Identity Services.
 
 PayMongo local notes:

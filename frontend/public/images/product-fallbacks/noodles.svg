@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Noodles">
+  <rect width="640" height="420" fill="#fffbea"/>
+  <path d="M126 184h388l-48 152H174l-48-152z" fill="#fef3c7" stroke="#854d0e" stroke-width="14" stroke-linejoin="round"/>
+  <ellipse cx="320" cy="184" rx="194" ry="58" fill="#fde68a" stroke="#854d0e" stroke-width="14"/>
+  <path d="M210 174c38-36 82 36 120 0s82 36 120 0" fill="none" stroke="#f59e0b" stroke-width="16" stroke-linecap="round"/>
+  <path d="M234 224c42-28 74 28 116 0s74 28 116 0" fill="none" stroke="#d97706" stroke-width="10" stroke-linecap="round"/>
+  <path d="M474 74l-94 120" stroke="#854d0e" stroke-width="12" stroke-linecap="round"/>
+  <path d="M510 86l-94 120" stroke="#854d0e" stroke-width="12" stroke-linecap="round"/>
+</svg>

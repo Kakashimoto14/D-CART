@@ -1,4 +1,5 @@
 import React, { createContext, startTransition, useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 
 export const AuthContext = createContext(null);
@@ -6,16 +7,23 @@ export const AuthContext = createContext(null);
 const TOKEN_KEY = "dcart_token";
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY));
   const [isReady, setIsReady] = useState(false);
 
-  const logout = useCallback(() => {
-    authApi.logout().catch(() => {});
+  const logout = useCallback(({ redirect = true } = {}) => {
     localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem("dcart_latest_order_id");
     setToken(null);
     setUser(null);
-  }, []);
+    window.dispatchEvent(new CustomEvent("dcart:logout"));
+    authApi.logout().catch(() => {});
+
+    if (redirect) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -49,7 +57,7 @@ export function AuthProvider({ children }) {
     };
 
     restoreSession();
-  }, [token]);
+  }, []);
 
   // Auto-logout when the Axios interceptor detects a 401
   useEffect(() => {

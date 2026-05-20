@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Beverages">
+  <rect width="640" height="420" fill="#eff6ff"/>
+  <path d="M252 62h136v62l38 54v148c0 30-24 54-54 54H268c-30 0-54-24-54-54V178l38-54V62z" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M244 214h152v80H244z" fill="#dbeafe" stroke="#1e3a8a" stroke-width="10"/>
+  <path d="M272 62h96" stroke="#1e3a8a" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="494" cy="104" r="78" fill="#60a5fa" opacity=".2"/>
+</svg>

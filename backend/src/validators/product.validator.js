@@ -3,9 +3,14 @@ import { z } from "zod";
 const imageUrlSchema = z
   .string()
   .trim()
-  .url()
   .max(500)
-  .refine((value) => /^https?:\/\//i.test(value), "Image URL must start with http or https.")
+  .refine(
+    (value) =>
+      /^https?:\/\//i.test(value) ||
+      /^\/uploads\/products\/[a-zA-Z0-9._-]+\.(jpg|jpeg|png|webp)$/i.test(value) ||
+      /^\/images\/product-fallbacks\/[a-zA-Z0-9._-]+\.svg$/i.test(value),
+    "Image must be an http(s) URL, uploaded product image path, or local product fallback path."
+  )
   .optional()
   .or(z.literal("").transform(() => null))
   .nullable();

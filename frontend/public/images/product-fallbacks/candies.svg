@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Candies and sweets">
+  <rect width="640" height="420" fill="#fff1f2"/>
+  <path d="M180 154l70 48-70 48-62-48 62-48zM460 154l62 48-62 48-70-48 70-48z" fill="#fecdd3" stroke="#9f1239" stroke-width="12" stroke-linejoin="round"/>
+  <rect x="238" y="154" width="164" height="96" rx="32" fill="#fb7185" stroke="#9f1239" stroke-width="14"/>
+  <circle cx="320" cy="202" r="26" fill="#ffe4e6"/>
+  <circle cx="502" cy="92" r="78" fill="#f43f5e" opacity=".14"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Alcoholic beverages">
+  <rect width="640" height="420" fill="#eef2ff"/>
+  <path d="M246 56h116v86l38 56v130c0 28-23 50-50 50H258c-27 0-50-22-50-50V198l38-56V56z" fill="#c7d2fe" stroke="#312e81" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M238 226h132v84H238z" fill="#f8fafc" stroke="#312e81" stroke-width="10"/>
+  <path d="M266 56h76" stroke="#312e81" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="438" cy="270" r="64" fill="#e0e7ff" stroke="#312e81" stroke-width="12"/>
+  <path d="M412 270h52M438 244v52" stroke="#312e81" stroke-width="10" stroke-linecap="round"/>
+</svg>

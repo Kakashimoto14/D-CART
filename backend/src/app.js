@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import path from "node:path";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
@@ -18,6 +19,7 @@ import pickerRoutes from "./routes/picker.routes.js";
 import geofencingRoutes from "./routes/geofencing.routes.js";
 import deliverySlotRoutes from "./routes/deliverySlot.routes.js";
 import dispatchRoutes from "./routes/dispatch.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 import { sanitizeRequest } from "./middlewares/sanitize.middleware.js";
 import { handlePaymongoWebhook } from "./controllers/order.controller.js";
@@ -78,6 +80,18 @@ app.use(cookieParser());
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: false, limit: "100kb" }));
 app.use(sanitizeRequest);
+app.use(
+  "/uploads",
+  (_req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.resolve("uploads"), {
+    fallthrough: false,
+    immutable: true,
+    maxAge: "30d"
+  })
+);
 
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -131,6 +145,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders/checkout", checkoutLimiter);
 app.use("/api/orders", orderRoutes);

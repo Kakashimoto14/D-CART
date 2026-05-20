@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Rice and grains">
+  <rect width="640" height="420" fill="#fff7df"/>
+  <circle cx="510" cy="74" r="78" fill="#facc15" opacity=".24"/>
+  <path d="M112 136h294l46 210H72l40-210z" fill="#f8fafc" stroke="#92400e" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M146 168h226l24 142H120l26-142z" fill="#fde68a"/>
+  <g fill="#fffef4" stroke="#ca8a04" stroke-width="4">
+    <ellipse cx="178" cy="226" rx="18" ry="8" transform="rotate(-24 178 226)"/>
+    <ellipse cx="238" cy="204" rx="18" ry="8" transform="rotate(18 238 204)"/>
+    <ellipse cx="298" cy="244" rx="18" ry="8" transform="rotate(-10 298 244)"/>
+    <ellipse cx="352" cy="214" rx="18" ry="8" transform="rotate(24 352 214)"/>
+    <ellipse cx="214" cy="278" rx="18" ry="8" transform="rotate(8 214 278)"/>
+    <ellipse cx="324" cy="296" rx="18" ry="8" transform="rotate(-22 324 296)"/>
+  </g>
+  <path d="M96 346h360" stroke="#92400e" stroke-width="14" stroke-linecap="round"/>
+</svg>
