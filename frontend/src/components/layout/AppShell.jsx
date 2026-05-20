@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, ChevronDown, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Bell, CheckCheck, ChevronDown, Loader2, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { adminApi } from "../../api/adminApi";
 import { BrandLogo } from "../brand/BrandLogo.jsx";
 import { useAuth } from "../../hooks/useAuth";
@@ -81,12 +81,17 @@ function AdminSidebar({ links, onNavigate }) {
 
 function AdminTopbar({ user, onOpenMenu, logout }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [quickOpen, setQuickOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [markingNotificationId, setMarkingNotificationId] = useState(null);
   const [notificationError, setNotificationError] = useState("");
   const meta = routeTitles[location.pathname] || {
     eyebrow: "Workspace",
@@ -104,6 +109,26 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
     { label: "View low stock", to: "/admin/inventory" },
     { label: "Print sales report", to: "/admin/analytics" }
   ];
+
+  const loadNotifications = useCallback(async () => {
+    if (!isAdmin) return;
+
+    setNotificationsLoading(true);
+    try {
+      setNotificationError("");
+      const data = await adminApi.notifications();
+      setNotifications(data.events || []);
+      setUnreadCount(data.unreadCount || 0);
+    } catch (requestError) {
+      setNotificationError(getApiErrorMessage(requestError, "Unable to load notifications."));
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!showGlobalSearch || searchTerm.trim().length < 2) {
@@ -130,12 +155,46 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
 
     if (!nextOpen || !isAdmin) return;
 
+    await loadNotifications();
+  };
+
+  const notificationTarget = (item) => {
+    if (item.metadata?.orderId) return "/admin/orders";
+    if (item.metadata?.productId) return "/admin/inventory";
+    return "/admin/notifications";
+  };
+
+  const handleNotificationClick = async (item) => {
+    const target = notificationTarget(item);
+    setMarkingNotificationId(item.id);
     try {
       setNotificationError("");
-      const data = await adminApi.notifications();
-      setNotifications(data.events || []);
+      setNotifications((current) => current.filter((notification) => notification.id !== item.id));
+      setUnreadCount((current) => Math.max(current - 1, 0));
+      await adminApi.markNotificationRead(item.id);
+      setNotificationsOpen(false);
+      navigate(target);
     } catch (requestError) {
-      setNotificationError(getApiErrorMessage(requestError, "Unable to load notifications."));
+      setNotificationError(getApiErrorMessage(requestError, "Unable to mark notification as read."));
+      await loadNotifications();
+    } finally {
+      setMarkingNotificationId(null);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setMarkingAllRead(true);
+    try {
+      setNotificationError("");
+      setNotifications([]);
+      setUnreadCount(0);
+      await adminApi.markAllNotificationsRead();
+      await loadNotifications();
+    } catch (requestError) {
+      setNotificationError(getApiErrorMessage(requestError, "Unable to mark notifications as read."));
+      await loadNotifications();
+    } finally {
+      setMarkingAllRead(false);
     }
   };
 
@@ -204,32 +263,68 @@ function AdminTopbar({ user, onOpenMenu, logout }) {
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
-              {notifications.length > 0 ? (
-                <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-rose-500" />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
               ) : null}
             </button>
             {notificationsOpen ? (
-              <div className="absolute right-16 top-20 z-30 max-h-[70vh] w-[min(92vw,420px)] overflow-y-auto rounded-[20px] border border-slate-100 bg-white p-3 shadow-xl">
+              <div className="absolute right-16 top-20 z-30 w-[min(92vw,420px)] rounded-[20px] border border-slate-100 bg-white p-3 shadow-xl">
                 <div className="flex items-center justify-between px-2 py-2">
-                  <p className="text-sm font-bold text-slate-900">Admin notifications</p>
-                  <Link to="/admin/notifications" onClick={() => setNotificationsOpen(false)} className="text-xs font-semibold text-brand-600">
-                    View all
-                  </Link>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Admin notifications</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{unreadCount} unread</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      disabled={markingAllRead || unreadCount === 0}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 disabled:cursor-not-allowed disabled:text-slate-300"
+                    >
+                      {markingAllRead ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCheck className="h-3.5 w-3.5" />
+                      )}
+                      Mark all as read
+                    </button>
+                    <Link to="/admin/notifications" onClick={() => setNotificationsOpen(false)} className="text-xs font-semibold text-brand-600">
+                      View all
+                    </Link>
+                  </div>
                 </div>
                 {notificationError ? <p className="px-2 py-3 text-sm text-rose-600">{notificationError}</p> : null}
-                {notifications.slice(0, 8).map((item) => (
-                  <Link
-                    key={item.id}
-                    to={item.metadata?.orderId ? "/admin/orders" : item.metadata?.productId ? "/admin/inventory" : "/admin/notifications"}
-                    onClick={() => setNotificationsOpen(false)}
-                    className="block rounded-2xl px-4 py-3 hover:bg-slate-50"
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                    <p className="mt-1 text-sm text-slate-500">{item.message}</p>
-                  </Link>
-                ))}
-                {!notificationError && notifications.length === 0 ? (
-                  <p className="px-2 py-5 text-sm text-slate-500">No admin notifications right now.</p>
+                {notificationsLoading ? (
+                  <div className="flex items-center gap-2 px-2 py-5 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading notifications...
+                  </div>
+                ) : null}
+                <div className="max-h-[56vh] overflow-y-auto pr-1">
+                  {!notificationsLoading && notifications.slice(0, 8).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleNotificationClick(item)}
+                      disabled={markingNotificationId === item.id}
+                      className="block w-full rounded-2xl px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                          <p className="mt-1 text-sm text-slate-500">{item.message}</p>
+                        </div>
+                        {markingNotificationId === item.id ? (
+                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-brand-500" />
+                        ) : null}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {!notificationError && !notificationsLoading && notifications.length === 0 ? (
+                  <p className="px-2 py-5 text-sm text-slate-500">No new notifications.</p>
                 ) : null}
               </div>
             ) : null}

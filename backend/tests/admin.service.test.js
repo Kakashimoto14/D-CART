@@ -5,6 +5,9 @@ process.env.JWT_SECRET ||= "test-secret";
 
 const findUniqueMock = jest.fn();
 const updateMock = jest.fn();
+const adminNotificationReadFindManyMock = jest.fn();
+const adminNotificationReadUpsertMock = jest.fn();
+const adminNotificationReadCreateManyMock = jest.fn();
 const enqueueRefundCompletedMock = jest.fn();
 const retryNotificationLogMock = jest.fn();
 const auditRecordMock = jest.fn();
@@ -17,6 +20,11 @@ jest.unstable_mockModule("../src/config/prisma.js", () => ({
     },
     notificationLog: {
       findUnique: findUniqueMock
+    },
+    adminNotificationRead: {
+      findMany: adminNotificationReadFindManyMock,
+      upsert: adminNotificationReadUpsertMock,
+      createMany: adminNotificationReadCreateManyMock
     }
   }
 }));
@@ -181,5 +189,88 @@ describe("AdminService.retryNotification", () => {
       "Only failed or skipped notifications can be retried."
     );
     expect(retryNotificationLogMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdminService notification read state", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("returns only unread admin notification events with an unread count", async () => {
+    adminNotificationReadFindManyMock.mockResolvedValue([
+      { notificationKey: "order-10", readAt: new Date("2026-05-20T12:00:00.000Z") }
+    ]);
+
+    const service = new AdminService();
+    jest.spyOn(service, "buildAdminNotificationEvents").mockResolvedValue({
+      events: [
+        {
+          id: "order-10",
+          type: "NEW_ORDER",
+          title: "New order",
+          message: "Order #10 is pending.",
+          createdAt: new Date("2026-05-20T11:00:00.000Z"),
+          metadata: { orderId: 10 }
+        },
+        {
+          id: "failed-payment-11",
+          type: "FAILED_PAYMENT",
+          title: "Failed payment",
+          message: "Payment failed.",
+          createdAt: new Date("2026-05-20T12:30:00.000Z"),
+          metadata: { orderId: 11 }
+        }
+      ],
+      deliveryLogs: [],
+      auditLogs: []
+    });
+
+    const result = await service.getNotifications(1);
+
+    expect(result.unreadCount).toBe(1);
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        id: "failed-payment-11",
+        isRead: false,
+        status: "UNREAD"
+      })
+    ]);
+    expect(result.recentRead).toEqual([
+      expect.objectContaining({
+        id: "order-10",
+        isRead: true,
+        status: "READ"
+      })
+    ]);
+  });
+
+  it("marks all current unread admin notifications as read", async () => {
+    adminNotificationReadFindManyMock.mockResolvedValue([]);
+    adminNotificationReadCreateManyMock.mockResolvedValue({ count: 2 });
+
+    const service = new AdminService();
+    jest.spyOn(service, "buildAdminNotificationEvents").mockResolvedValue({
+      events: [
+        { id: "order-12", type: "NEW_ORDER", title: "New order", message: "Order #12", metadata: {} },
+        { id: "low-stock-7", type: "LOW_STOCK", title: "Low stock", message: "Low stock", metadata: {} }
+      ],
+      deliveryLogs: [],
+      auditLogs: []
+    });
+
+    const result = await service.markAllNotificationsRead(1);
+
+    expect(adminNotificationReadCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        { adminUserId: 1, notificationKey: "order-12" },
+        { adminUserId: 1, notificationKey: "low-stock-7" }
+      ],
+      skipDuplicates: true
+    });
+    expect(result).toEqual({
+      readCount: 2,
+      unreadCount: 0
+    });
   });
 });

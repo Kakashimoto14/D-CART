@@ -21,6 +21,10 @@ export const adminNotificationLogParamSchema = z.object({
   notificationLogId: z.coerce.number().int().positive()
 });
 
+export const adminNotificationParamSchema = z.object({
+  notificationId: z.string().trim().min(1).max(120)
+});
+
 export const adminListQuerySchema = z.object({
   q: z.string().trim().max(100).optional().default(""),
   status: z.string().trim().max(50).optional().default("ALL"),

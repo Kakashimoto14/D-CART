@@ -359,6 +359,19 @@ PAYMONGO_WEBHOOK_SECRET=your_paymongo_webhook_secret
 
 If you use Supabase, keep `DATABASE_URL` pointed at the Prisma pooler connection and set `DIRECT_URL` to the direct database connection for migrations.
 
+Redis is optional for local development. The backend continues without Redis when it is disabled or unavailable. To exercise BullMQ queues, reservation expiry jobs, and Redis-backed realtime coordination locally:
+
+```bash
+docker run --name dcart-redis -p 6379:6379 -d redis:7-alpine
+```
+
+Then set:
+
+```env
+REDIS_ENABLED=true
+REDIS_URL=redis://localhost:6379
+```
+
 Run Prisma and seed the database:
 
 ```bash
@@ -468,11 +481,12 @@ FRONTEND\\\_URLS=https://decolores-cart.vercel.app,http://localhost:5173
 ADMIN\\\_NAME=Store Admin
 ADMIN\\\_EMAIL=admin@dcart.local
 ADMIN\\\_PASSWORD=ChangeMe123!
+REDIS\\\_ENABLED=true
 REDIS\\\_URL=redis://YOUR-REDIS-HOST:6379
 STORE\\\_UTC\\\_OFFSET\\\_MINUTES=480
 ```
 
-If you use Supabase, use the pooled connection for `DATABASE_URL` and the direct connection for `DIRECT_URL`.
+If you use Supabase, use the pooled connection for `DATABASE_URL` and the direct connection for `DIRECT_URL`. On DigitalOcean, Railway, or another production host, set `REDIS_ENABLED=true` and `REDIS_URL` in the backend service environment. Do not hardcode Redis credentials in source files.
 
 ### Database Deployment
 

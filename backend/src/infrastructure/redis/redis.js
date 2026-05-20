@@ -15,27 +15,36 @@ export const initializeRedis = async () => {
     return commandClient;
   }
 
-  commandClient = new Redis(env.redisUrl, {
-    maxRetriesPerRequest: null,
-    lazyConnect: true
-  });
+  try {
+    commandClient = new Redis(env.redisUrl, {
+      maxRetriesPerRequest: null,
+      lazyConnect: true
+    });
 
-  subscriberClient = commandClient.duplicate({
-    lazyConnect: true
-  });
+    subscriberClient = commandClient.duplicate({
+      lazyConnect: true
+    });
 
-  commandClient.on("error", (error) => {
-    logger.error({ error }, "Redis command client error.");
-  });
+    commandClient.on("error", (error) => {
+      logger.warn({ error }, "Redis command client error.");
+    });
 
-  subscriberClient.on("error", (error) => {
-    logger.error({ error }, "Redis subscriber client error.");
-  });
+    subscriberClient.on("error", (error) => {
+      logger.warn({ error }, "Redis subscriber client error.");
+    });
 
-  await commandClient.connect();
-  await subscriberClient.connect();
-  logger.info("Redis connected.");
-  return commandClient;
+    await commandClient.connect();
+    await subscriberClient.connect();
+    logger.info("Redis connected. Redis-backed queues and realtime adapters are enabled.");
+    return commandClient;
+  } catch (error) {
+    logger.warn(
+      { error },
+      "Redis is enabled but unavailable. Continuing without Redis-backed services."
+    );
+    await closeRedis();
+    return null;
+  }
 };
 
 export const getRedis = () => commandClient;

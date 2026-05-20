@@ -1,4 +1,6 @@
 const required = ["DATABASE_URL", "JWT_SECRET"];
+const redisUrl = process.env.REDIS_URL || "";
+const redisEnabledFlag = process.env.REDIS_ENABLED;
 
 required.forEach((key) => {
   if (!process.env[key]) {
@@ -16,8 +18,11 @@ export const env = {
   refreshCookieName: process.env.REFRESH_COOKIE_NAME || "dcart_refresh_token",
   refreshCookieSecure:
     process.env.REFRESH_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
-  redisUrl: process.env.REDIS_URL || "",
-  redisEnabled: Boolean(process.env.REDIS_URL),
+  redisUrl,
+  redisEnabled:
+    redisEnabledFlag === undefined
+      ? Boolean(redisUrl)
+      : redisEnabledFlag.toLowerCase() === "true" && Boolean(redisUrl),
   appName: process.env.APP_NAME || "D'Cart",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   frontendUrls: (

@@ -15,6 +15,7 @@ const notificationService = new NotificationService();
 const inventoryService = new InventoryService();
 const auditService = new AuditService();
 const categorySummarySelect = { id: true, name: true };
+const ADMIN_NOTIFICATION_LIMIT = 30;
 
 const startOfRange = (range, from) => {
   const now = new Date();
@@ -680,7 +681,7 @@ export class AdminService {
     };
   }
 
-  async getNotifications() {
+  async buildAdminNotificationEvents() {
     const [dashboard, inventoryAlerts, failedPayments, completedOrders] = await Promise.all([
       this.getDashboardMetrics(),
       inventoryService.getInventoryAlerts(),
@@ -742,9 +743,145 @@ export class AdminService {
     ].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 
     return {
-      events: events.slice(0, 30),
+      events: events.slice(0, ADMIN_NOTIFICATION_LIMIT),
       deliveryLogs: dashboard.notifications.recentLogs,
       auditLogs: dashboard.audit.recentLogs
+    };
+  }
+
+  async getNotifications(adminUserId = null) {
+    const { events, deliveryLogs, auditLogs } = await this.buildAdminNotificationEvents();
+    const readRows = adminUserId
+      ? await prisma.adminNotificationRead.findMany({
+          where: {
+            adminUserId,
+            notificationKey: {
+              in: events.map((event) => event.id)
+            }
+          },
+          select: {
+            notificationKey: true,
+            readAt: true
+          }
+        })
+      : [];
+    const readByKey = new Map(readRows.map((row) => [row.notificationKey, row.readAt]));
+    const decoratedEvents = events.map((event) => {
+      const readAt = readByKey.get(event.id) || null;
+
+      return {
+        ...event,
+        status: readAt ? "READ" : "UNREAD",
+        isRead: Boolean(readAt),
+        readAt
+      };
+    });
+    const unreadEvents = decoratedEvents.filter((event) => !event.isRead);
+
+    return {
+      events: unreadEvents,
+      unreadCount: unreadEvents.length,
+      totalCount: decoratedEvents.length,
+      recentRead: decoratedEvents.filter((event) => event.isRead).slice(0, 10),
+      deliveryLogs,
+      auditLogs
+    };
+  }
+
+  async markNotificationRead(adminUserId, notificationKey) {
+    if (!adminUserId) {
+      throw new AppError("Admin user is required.", 401);
+    }
+
+    const { events } = await this.buildAdminNotificationEvents();
+    const event = events.find((item) => item.id === notificationKey);
+    if (!event) {
+      throw new AppError("Admin notification not found.", 404);
+    }
+
+    const readState = await prisma.adminNotificationRead.upsert({
+      where: {
+        adminUserId_notificationKey: {
+          adminUserId,
+          notificationKey
+        }
+      },
+      create: {
+        adminUserId,
+        notificationKey
+      },
+      update: {
+        readAt: new Date()
+      }
+    });
+
+    await auditService.record({
+      action: "admin.notification.read",
+      entityType: "admin_notification",
+      entityId: notificationKey,
+      actorUserId: adminUserId,
+      metadata: {
+        type: event.type
+      }
+    });
+
+    const notifications = await this.getNotifications(adminUserId);
+
+    return {
+      notification: {
+        ...event,
+        status: "READ",
+        isRead: true,
+        readAt: readState.readAt
+      },
+      unreadCount: notifications.unreadCount
+    };
+  }
+
+  async markAllNotificationsRead(adminUserId) {
+    if (!adminUserId) {
+      throw new AppError("Admin user is required.", 401);
+    }
+
+    const { events } = await this.buildAdminNotificationEvents();
+    const existingRows = await prisma.adminNotificationRead.findMany({
+      where: {
+        adminUserId,
+        notificationKey: {
+          in: events.map((event) => event.id)
+        }
+      },
+      select: {
+        notificationKey: true
+      }
+    });
+    const existingKeys = new Set(existingRows.map((row) => row.notificationKey));
+    const unreadKeys = events
+      .map((event) => event.id)
+      .filter((notificationKey) => !existingKeys.has(notificationKey));
+
+    if (unreadKeys.length > 0) {
+      await prisma.adminNotificationRead.createMany({
+        data: unreadKeys.map((notificationKey) => ({
+          adminUserId,
+          notificationKey
+        })),
+        skipDuplicates: true
+      });
+
+      await auditService.record({
+        action: "admin.notification.read_all",
+        entityType: "admin_notification",
+        actorUserId: adminUserId,
+        metadata: {
+          count: unreadKeys.length
+        }
+      });
+    }
+
+    return {
+      readCount: unreadKeys.length,
+      unreadCount: 0
     };
   }
 

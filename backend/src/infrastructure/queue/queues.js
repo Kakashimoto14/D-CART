@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import { env } from "../../config/env.js";
+import { logger } from "../logger/logger.js";
 import { getRedis } from "../redis/redis.js";
 
 const names = [
@@ -21,7 +22,8 @@ export const initializeQueues = () => {
 
   const connection = getRedis();
   if (!connection) {
-    throw new Error("Redis must be initialized before queues.");
+    logger.warn("Redis is enabled but not connected. Queue producers are disabled.");
+    return {};
   }
 
   for (const name of names) {
@@ -64,6 +66,19 @@ export const getQueueStats = async () => {
   }
 
   const entries = Array.from(queueRegistry.entries());
+  if (entries.length === 0) {
+    return {
+      enabled: false,
+      queues: {},
+      totals: {
+        waiting: 0,
+        active: 0,
+        delayed: 0,
+        failed: 0
+      }
+    };
+  }
+
   const queueStats = await Promise.all(
     entries.map(async ([name, queue]) => {
       const counts = await queue.getJobCounts(

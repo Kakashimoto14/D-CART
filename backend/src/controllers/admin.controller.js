@@ -22,9 +22,22 @@ export const getSalesAnalytics = async (req, res) => {
   res.status(200).json({ analytics });
 };
 
-export const getNotifications = async (_req, res) => {
-  const notifications = await adminService.getNotifications();
+export const getNotifications = async (req, res) => {
+  const notifications = await adminService.getNotifications(req.user?.id);
   res.status(200).json({ notifications });
+};
+
+export const markNotificationRead = async (req, res) => {
+  const result = await adminService.markNotificationRead(
+    req.user?.id,
+    req.params.notificationId
+  );
+  res.status(200).json(result);
+};
+
+export const markAllNotificationsRead = async (req, res) => {
+  const result = await adminService.markAllNotificationsRead(req.user?.id);
+  res.status(200).json(result);
 };
 
 export const getSettings = async (_req, res) => {

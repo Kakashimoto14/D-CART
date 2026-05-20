@@ -127,27 +127,28 @@ enum NotificationStatus {
 }
 
 model User {
-  id                     Int               @id @default(autoincrement())
+  id                     Int                     @id @default(autoincrement())
   name                   String
-  email                  String            @unique
+  email                  String                  @unique
   password               String?
-  authProvider           AuthProvider      @default(LOCAL)
-  googleSub              String?           @unique @db.VarChar(255)
-  avatarUrl              String?           @db.VarChar(500)
+  authProvider           AuthProvider            @default(LOCAL)
+  googleSub              String?                 @unique @db.VarChar(255)
+  avatarUrl              String?                 @db.VarChar(500)
   emailVerifiedAt        DateTime?
-  phone                  String?           @db.VarChar(20)
-  role                   Role              @default(CUSTOMER)
-  passwordResetToken     String?           @db.VarChar(64)
+  phone                  String?                 @db.VarChar(20)
+  role                   Role                    @default(CUSTOMER)
+  passwordResetToken     String?                 @db.VarChar(64)
   passwordResetExpiresAt DateTime?
   cart                   Cart?
   orders                 Order[]
-  pickerAssignments      Order[]           @relation("PickerOrders")
+  pickerAssignments      Order[]                 @relation("PickerOrders")
   riderProfile           Rider?
   refreshTokens          RefreshToken[]
-  auditLogs              AuditLog[]        @relation("AuditLogActor")
+  auditLogs              AuditLog[]              @relation("AuditLogActor")
+  adminNotificationReads AdminNotificationRead[] @relation("AdminNotificationReadAdmin")
   notificationLogs       NotificationLog[]
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@index([authProvider])
   @@map("users")
@@ -369,6 +370,20 @@ model AuditLog {
   @@index([actorUserId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+model AdminNotificationRead {
+  id              Int      @id @default(autoincrement())
+  adminUserId     Int
+  notificationKey String   @db.VarChar(120)
+  readAt          DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  admin           User     @relation("AdminNotificationReadAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([adminUserId, notificationKey])
+  @@index([adminUserId, readAt])
+  @@map("admin_notification_reads")
 }
 
 model InventoryItem {

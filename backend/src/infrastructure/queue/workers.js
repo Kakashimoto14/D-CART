@@ -67,7 +67,8 @@ export const initializeWorkers = () => {
 
   const connection = getRedis();
   if (!connection) {
-    throw new Error("Redis must be initialized before workers.");
+    logger.warn("Redis is enabled but not connected. Queue workers are disabled.");
+    return workers;
   }
 
   for (const definition of workerDefinitions) {

@@ -9,6 +9,8 @@ import {
   globalSearch,
   listCustomers,
   listSuppliers,
+  markAllNotificationsRead,
+  markNotificationRead,
   updateSettings,
   retryNotification
 } from "../controllers/admin.controller.js";
@@ -18,6 +20,7 @@ import { validateBody, validateParams, validateQuery } from "../middlewares/vali
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   adminNotificationLogParamSchema,
+  adminNotificationParamSchema,
   adminOrderParamSchema,
   adminListQuerySchema,
   adminSearchQuerySchema,
@@ -50,6 +53,19 @@ router.get(
   asyncHandler(getSalesAnalytics)
 );
 router.get("/notifications", authenticate, authorize("ADMIN"), asyncHandler(getNotifications));
+router.patch(
+  "/notifications/read-all",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(markAllNotificationsRead)
+);
+router.patch(
+  "/notifications/:notificationId/read",
+  authenticate,
+  authorize("ADMIN"),
+  validateParams(adminNotificationParamSchema),
+  asyncHandler(markNotificationRead)
+);
 router.get("/settings", authenticate, authorize("ADMIN"), asyncHandler(getSettings));
 router.put(
   "/settings",

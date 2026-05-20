@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { CheckCheck, Loader2 } from "lucide-react";
 import { adminApi } from "../api/adminApi";
 import { PageHero, SectionCard, StatCard } from "../components/admin/AdminPrimitives.jsx";
 import { LoadingState } from "../components/common/LoadingState";
@@ -13,6 +14,8 @@ export function AdminNotificationsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [retryingNotificationId, setRetryingNotificationId] = useState(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [markingNotificationId, setMarkingNotificationId] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -49,6 +52,47 @@ export function AdminNotificationsPage() {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    setMarkingAllRead(true);
+    setError("");
+    setSuccess("");
+    const previousNotifications = notifications;
+    setNotifications((current) => ({ ...current, events: [], unreadCount: 0 }));
+
+    try {
+      const result = await adminApi.markAllNotificationsRead();
+      setSuccess(`${result.readCount || 0} notification${result.readCount === 1 ? "" : "s"} marked as read.`);
+      await loadData();
+    } catch (requestError) {
+      setNotifications(previousNotifications);
+      setError(getApiErrorMessage(requestError, "Unable to mark notifications as read."));
+    } finally {
+      setMarkingAllRead(false);
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId) => {
+    setMarkingNotificationId(notificationId);
+    setError("");
+    setSuccess("");
+    const previousNotifications = notifications;
+    setNotifications((current) => ({
+      ...current,
+      events: (current.events || []).filter((event) => event.id !== notificationId),
+      unreadCount: Math.max((current.unreadCount || 1) - 1, 0)
+    }));
+
+    try {
+      await adminApi.markNotificationRead(notificationId);
+      await loadData();
+    } catch (requestError) {
+      setNotifications(previousNotifications);
+      setError(getApiErrorMessage(requestError, "Unable to mark notification as read."));
+    } finally {
+      setMarkingNotificationId(null);
+    }
+  };
+
   if (loading) {
     return <LoadingState label="Loading notifications and audit trail..." />;
   }
@@ -73,6 +117,22 @@ export function AdminNotificationsPage() {
 
       <div className="grid gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard title="Admin alerts" description="Recent operational alerts from orders, payments, and inventory.">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">{notifications.unreadCount || 0} unread alerts</p>
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-2"
+              onClick={handleMarkAllRead}
+              disabled={markingAllRead || (notifications.unreadCount || 0) === 0}
+            >
+              {markingAllRead ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
+              Mark all as read
+            </button>
+          </div>
           <div className="space-y-3">
             {(notifications.events || []).slice(0, 10).map((event) => (
               <div key={event.id} className="rounded-[22px] border border-slate-100 bg-slate-50/70 p-4">
@@ -81,12 +141,22 @@ export function AdminNotificationsPage() {
                     <p className="font-semibold text-slate-900">{event.title}</p>
                     <p className="mt-1 text-sm text-slate-500">{event.message}</p>
                   </div>
-                  <StatusBadge status={event.type} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={event.type} />
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-brand-600 disabled:cursor-wait disabled:text-slate-300"
+                      onClick={() => handleMarkNotificationRead(event.id)}
+                      disabled={markingNotificationId === event.id}
+                    >
+                      {markingNotificationId === event.id ? "Marking..." : "Mark as read"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
             {(notifications.events || []).length === 0 ? (
-              <p className="text-sm text-slate-500">No admin alerts right now.</p>
+              <p className="text-sm text-slate-500">No new notifications.</p>
             ) : null}
           </div>
         </SectionCard>

@@ -21,6 +21,14 @@ export const adminApi = {
     const { data } = await client.get("/admin/notifications");
     return data.notifications;
   },
+  markNotificationRead: async (notificationId) => {
+    const { data } = await client.patch(`/admin/notifications/${notificationId}/read`);
+    return data;
+  },
+  markAllNotificationsRead: async () => {
+    const { data } = await client.patch("/admin/notifications/read-all");
+    return data;
+  },
   settings: async () => {
     const { data } = await client.get("/admin/settings");
     return data.settings;
