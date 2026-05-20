@@ -1,4 +1,4 @@
-import { HelpCircle, Search, Sparkles, Truck } from "lucide-react";
+import { HelpCircle, Search, ShoppingBasket, Sparkles, Truck } from "lucide-react";
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { categoryApi } from "../api/categoryApi";
@@ -99,6 +99,66 @@ export function HomePage() {
     [filteredProducts]
   );
 
+  const productSections = useMemo(() => {
+    const byCategory = (names, limit = 8) =>
+      filteredProducts
+        .filter((product) => names.includes(product.category?.name) && isInStock(product))
+        .slice(0, limit);
+
+    return [
+      {
+        kicker: "Best Sellers",
+        title: "Popular Decolores picks",
+        items: featuredProducts
+      },
+      {
+        kicker: "Daily Essentials",
+        title: "Fast-moving pantry basics",
+        items: byCategory([
+          "Canned Goods",
+          "Noodles & Instant Food",
+          "Condiments & Sauces",
+          "Seasonings & Cooking Ingredients",
+          "Beverages"
+        ])
+      },
+      {
+        kicker: "Snacks",
+        title: "Chichirya and baon treats",
+        items: byCategory(["Snacks / Chichirya", "Candies & Sweets"])
+      },
+      {
+        kicker: "Rice & Grains",
+        title: "Bigas by kilo and sack",
+        items: byCategory(["Rice & Grains"], 6)
+      },
+      {
+        kicker: "Cleaning Supplies",
+        title: "Laundry and kitchen cleanup",
+        items: byCategory(["Laundry & Cleaning", "Household Essentials"])
+      },
+      {
+        kicker: "Personal Care",
+        title: "Hygiene staples",
+        items: byCategory(["Personal Care", "Baby & Kids"])
+      },
+      {
+        kicker: "Wholesale Deals",
+        title: "Sacks, cases, boxes, and value packs",
+        items: filteredProducts
+          .filter((product) => {
+            const unit = String(product.unit || "").toLowerCase();
+            return (
+              isInStock(product) &&
+              (["sack", "case", "box"].includes(unit) ||
+                product.description?.toLowerCase().includes("wholesale-ready"))
+            );
+          })
+          .slice(0, 8)
+      }
+    ].filter((section) => section.items.length > 0);
+  }, [featuredProducts, filteredProducts]);
+
   const runProductAction = async (productId, action) => {
     setBusyProductId(productId);
     setError("");
@@ -144,16 +204,16 @@ export function HomePage() {
 
   return (
     <section className="space-y-5">
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="section-shell overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#0d1b2a_0%,#182536_62%,#2b3137_100%)] text-white">
+      <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="section-shell overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#0d1b2a_0%,#31403a_58%,#ff6b4a_160%)] text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="max-w-2xl">
               <BrandLogo className="h-12 w-44 rounded-2xl bg-white px-3 py-2 shadow-sm" imageClassName="h-8" />
               <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                Groceries. Delivered. Fast.
+                Decolores grocery essentials, ready for delivery.
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-                Hi {user?.name?.split(" ")[0] || "there"} - shop everyday essentials and check out in a few taps.
+                Hi {user?.name?.split(" ")[0] || "there"} - shop bigas, chichirya, canned goods, cleaning supplies, and sari-sari staples in a few taps.
               </p>
             </div>
             <Link to="/account" className="inline-flex items-center rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
@@ -169,7 +229,7 @@ export function HomePage() {
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search products..."
+                placeholder="Search bigas, snacks, soap, noodles..."
                 className="field border-white/20 bg-white pl-12"
               />
             </label>
@@ -226,9 +286,9 @@ export function HomePage() {
               <p className="brand-kicker">
                 Ready to shop
               </p>
-              <h3 className="mt-2 text-xl font-bold text-ink">Fast checkout, less waiting</h3>
+              <h3 className="mt-2 text-xl font-bold text-ink">Palengke-style basics, online</h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Add products from the catalog, review your basket, and place your order in a few guided steps.
+                Build a basket from everyday household needs, review it quickly, and choose cash or GCash at checkout.
               </p>
             </div>
           )}
@@ -236,11 +296,11 @@ export function HomePage() {
           <div className="panel px-5 py-5">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-                <Sparkles className="h-5 w-5" />
+                <ShoppingBasket className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-slate-900">Today&apos;s shortcut</p>
-                <p className="text-sm text-slate-500">Add from the product cards and keep moving.</p>
+                <p className="text-sm font-semibold text-slate-900">Compact shopping cards</p>
+                <p className="text-sm text-slate-500">See price, unit, stock, and add items without leaving the aisle.</p>
               </div>
             </div>
           </div>
@@ -263,42 +323,43 @@ export function HomePage() {
         />
       ) : (
         <>
-          <div className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="brand-kicker">
-                  Best Value Today
-                </p>
-                <h3 className="mt-1 text-xl font-bold text-ink">
-                  Budget-friendly picks
-                </h3>
+          {bestValueProducts.length ? (
+            <div className="space-y-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="brand-kicker">Budget Picks</p>
+                  <h3 className="mt-1 text-xl font-bold text-ink">Low-price essentials</h3>
+                </div>
+                <Link to="/products" className="hidden text-sm font-semibold text-brand-600 sm:inline-flex">
+                  See all
+                </Link>
               </div>
-              <Link to="/products" className="hidden text-sm font-semibold text-brand-600 sm:inline-flex">
-                See all
-              </Link>
+              {renderProducts(bestValueProducts)}
             </div>
-            {renderProducts(bestValueProducts.length ? bestValueProducts : featuredProducts)}
-          </div>
+          ) : null}
 
-          <div className="space-y-3">
-            <div>
-              <p className="brand-kicker">
-                Fresh Picks
-              </p>
-              <h3 className="mt-1 text-xl font-bold text-ink">Ready for your basket</h3>
+          {productSections.map((section) => (
+            <div key={section.kicker} className="space-y-3">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="brand-kicker">{section.kicker}</p>
+                  <h3 className="mt-1 text-xl font-bold text-ink">{section.title}</h3>
+                </div>
+                {section.kicker === "Best Sellers" ? <Sparkles className="h-5 w-5 text-brand-500" /> : null}
+              </div>
+              {renderProducts(section.items, section.items.length <= 6)}
             </div>
-            {renderProducts(featuredProducts, true)}
-          </div>
+          ))}
 
-          <div className="space-y-4">
-            <div>
-              <p className="brand-kicker">
-                What&apos;s New
-              </p>
-              <h3 className="mt-1 text-xl font-bold text-ink">Fresh arrivals in the catalog</h3>
+          {recentProducts.length ? (
+            <div className="space-y-4">
+              <div>
+                <p className="brand-kicker">Fresh Arrivals</p>
+                <h3 className="mt-1 text-xl font-bold text-ink">Recently added to the catalog</h3>
+              </div>
+              {renderProducts(recentProducts)}
             </div>
-            {renderProducts(recentProducts)}
-          </div>
+          ) : null}
         </>
       )}
     </section>

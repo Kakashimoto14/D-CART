@@ -1,3 +1,5 @@
+import { ImageIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { QuantityStepper } from "../customer/QuantityStepper.jsx";
 import { currency } from "../../utils/format";
 
@@ -30,6 +32,19 @@ export function ProductCard({
   onDecrease,
   busy
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(product.image) && !imageFailed;
+  const isWholesale =
+    product.description?.toLowerCase().includes("wholesale-ready") ||
+    ["sack", "case", "box"].includes(String(product.unit || "").toLowerCase());
+  const isAgeRestricted =
+    product.category?.name === "Alcoholic Beverages" ||
+    product.description?.toLowerCase().includes("age-restricted");
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [product.image]);
+
   const initials = product.name
     .split(" ")
     .filter(Boolean)
@@ -45,29 +60,49 @@ export function ProductCard({
   const isOutOfStock = Number(product.stock || 0) <= 0;
 
   return (
-    <article className="overflow-hidden rounded-[16px] border border-white/80 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-panel">
-      <div className="relative h-28 overflow-hidden bg-mesh-soft sm:h-32">
-        {product.image ? (
-          <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+    <article className="overflow-hidden rounded-[14px] border border-white/80 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-panel">
+      <div className="relative h-24 overflow-hidden bg-mesh-soft sm:h-28">
+        {hasImage ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <div className="grocery-placeholder flex h-full items-center justify-center">
-            <span className="rounded-full bg-white/80 px-3 py-2 text-lg font-bold tracking-[0.08em] text-brand-600 shadow-sm">
-              {initials || "DG"}
-            </span>
+            {initials ? (
+              <span className="rounded-full bg-white/80 px-3 py-2 text-lg font-bold tracking-[0.08em] text-brand-600 shadow-sm">
+                {initials}
+              </span>
+            ) : (
+              <ImageIcon className="h-7 w-7 text-brand-400" />
+            )}
           </div>
         )}
-        <div
-          className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold shadow-sm ${availability.tone}`}
-        >
-          {availability.label}
+        <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1">
+          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold shadow-sm ${availability.tone}`}>
+            {availability.label}
+          </span>
+          {isWholesale ? (
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800 shadow-sm">
+              Wholesale
+            </span>
+          ) : null}
+          {isAgeRestricted ? (
+            <span className="rounded-full bg-slate-900/85 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+              18+
+            </span>
+          ) : null}
         </div>
       </div>
-      <div className="space-y-2.5 px-3 py-3">
+      <div className="space-y-2 px-3 py-3">
         <div className="space-y-0.5">
           <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">
             {product.category?.name || "General"}
           </p>
-          <h3 className="line-clamp-2 min-h-9 text-[13px] font-bold leading-[18px] text-ink sm:text-sm">
+          <h3 className="line-clamp-2 min-h-9 text-[13px] font-bold leading-[18px] text-ink">
             {product.name}
           </h3>
           <p className="hidden truncate text-xs leading-4 text-slate-500 sm:block">
@@ -79,7 +114,7 @@ export function ProductCard({
             <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
               per {product.unit || "pc"}
             </p>
-            <p className="mt-0.5 text-base font-extrabold text-slate-900 sm:text-lg">
+            <p className="mt-0.5 text-base font-extrabold text-slate-900">
               {currency(product.price)}
             </p>
             {product.weight ? (

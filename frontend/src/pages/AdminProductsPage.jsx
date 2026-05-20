@@ -24,6 +24,32 @@ const initialForm = {
   categoryId: ""
 };
 
+function AdminProductImage({ product }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [product.image]);
+
+  if (product.image && !imageFailed) {
+    return (
+      <img
+        src={product.image}
+        alt={product.name}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="grocery-placeholder flex h-full items-center justify-center">
+      <ImageIcon className="h-8 w-8 text-brand-400" />
+    </div>
+  );
+}
+
 export function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -174,13 +200,7 @@ export function AdminProductsPage() {
                 >
                   <div className="grid gap-4 sm:grid-cols-[130px_1fr]">
                     <div className="h-32 bg-brand-50 sm:h-full">
-                      {product.image ? (
-                        <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="grocery-placeholder flex h-full items-center justify-center">
-                          <ImageIcon className="h-8 w-8 text-brand-400" />
-                        </div>
-                      )}
+                      <AdminProductImage product={product} />
                     </div>
                     <div className="p-4">
                       <div className="flex flex-wrap items-center gap-3">
