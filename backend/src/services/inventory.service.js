@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
+import { logger } from "../infrastructure/logger/logger.js";
 import { getQueue } from "../infrastructure/queue/queues.js";
 import { getRedis } from "../infrastructure/redis/redis.js";
 import { AppError } from "../utils/AppError.js";
@@ -13,12 +14,16 @@ const categorySummarySelect = { id: true, name: true };
 
 export class InventoryService {
   async enqueueReservationExpiry(reservationId, ttlMinutes) {
-    if (!env.redisEnabled) {
+    if (!env.queueEnabled || !env.redisEnabled) {
       return;
     }
 
     const queue = getQueue("reservation-expiry");
     if (!queue) {
+      logger.warn(
+        { reservationId },
+        "Reservation expiry queue unavailable. Reservation expiry will rely on explicit cleanup."
+      );
       return;
     }
 
@@ -33,7 +38,7 @@ export class InventoryService {
   }
 
   async trackReservationExpiry(reservation) {
-    if (!reservation || !env.redisEnabled) {
+    if (!reservation || !env.redisEnabled || !env.queueEnabled) {
       return;
     }
 

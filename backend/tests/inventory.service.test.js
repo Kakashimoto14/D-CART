@@ -23,7 +23,9 @@ jest.unstable_mockModule("../src/config/prisma.js", () => ({
 
 jest.unstable_mockModule("../src/config/env.js", () => ({
   env: {
-    redisEnabled: true
+    nodeEnv: "test",
+    redisEnabled: true,
+    queueEnabled: true
   }
 }));
 

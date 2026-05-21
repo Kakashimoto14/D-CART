@@ -1,7 +1,7 @@
 import { Queue } from "bullmq";
 import { env } from "../../config/env.js";
 import { logger } from "../logger/logger.js";
-import { getRedis } from "../redis/redis.js";
+import { getRedis, isRedisReady } from "../redis/redis.js";
 
 const names = [
   "notifications",
@@ -16,14 +16,24 @@ const names = [
 const queueRegistry = new Map();
 
 export const initializeQueues = () => {
+  if (!env.queueEnabled) {
+    logger.info("Queue disabled. Running without background queue producers.");
+    return {};
+  }
+
   if (!env.redisEnabled) {
+    logger.warn("Queue enabled but Redis is disabled. Queue producers are unavailable.");
     return {};
   }
 
   const connection = getRedis();
-  if (!connection) {
-    logger.warn("Redis is enabled but not connected. Queue producers are disabled.");
+  if (!connection || !isRedisReady()) {
+    logger.warn("Queue enabled but Redis is not connected. Queue producers are unavailable.");
     return {};
+  }
+
+  if (queueRegistry.size === 0) {
+    logger.info("Queue enabled. Initializing background queue producers.");
   }
 
   for (const name of names) {
@@ -52,7 +62,7 @@ export const initializeQueues = () => {
 export const getQueue = (name) => queueRegistry.get(name) || null;
 
 export const getQueueStats = async () => {
-  if (!env.redisEnabled) {
+  if (!env.queueEnabled) {
     return {
       enabled: false,
       queues: {},

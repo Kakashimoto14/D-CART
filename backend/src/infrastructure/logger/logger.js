@@ -12,7 +12,13 @@ export const logger = pino({
       "req.headers.authorization",
       "req.headers.cookie",
       "res.headers['set-cookie']",
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "REDIS_URL",
+      "databaseUrl",
+      "directUrl",
       "password",
+      "redisUrl",
       "token",
       "refreshToken"
     ],

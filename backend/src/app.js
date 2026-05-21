@@ -27,7 +27,7 @@ import { asyncHandler } from "./utils/asyncHandler.js";
 import { logger } from "./infrastructure/logger/logger.js";
 import { requestContextMiddleware } from "./infrastructure/http/request-context.js";
 import { getQueueStats } from "./infrastructure/queue/queues.js";
-import { getRedis } from "./infrastructure/redis/redis.js";
+import { getRedisStatus } from "./infrastructure/redis/redis.js";
 
 const app = express();
 
@@ -127,15 +127,16 @@ app.use(globalLimiter);
 
 app.get("/api/health", async (_req, res) => {
   const queueStats = await getQueueStats().catch(() => ({
-    enabled: env.redisEnabled,
+    enabled: false,
     queues: {}
   }));
 
   res.status(200).json({
     status: "ok",
     service: "dcart-backend",
-    redis: env.redisEnabled ? (getRedis()?.status || "disconnected") : "disabled",
+    redis: env.redisEnabled ? getRedisStatus() : "disabled",
     queues: {
+      configured: env.queueEnabled,
       enabled: queueStats.enabled,
       registered: Object.keys(queueStats.queues || {}).length
     }

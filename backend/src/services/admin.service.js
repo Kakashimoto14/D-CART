@@ -2,7 +2,7 @@ import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { ROLES } from "../constants/roles.js";
 import { getQueueStats } from "../infrastructure/queue/queues.js";
-import { getRedis } from "../infrastructure/redis/redis.js";
+import { getRedisStatus } from "../infrastructure/redis/redis.js";
 import { AppError } from "../utils/AppError.js";
 import { normalizeEmail } from "../utils/normalizeEmail.js";
 import { hashPassword } from "../utils/password.js";
@@ -33,7 +33,7 @@ const endOfRange = (range, to) => {
 export class AdminService {
   async getDashboardMetrics() {
     const queueStatsPromise = getQueueStats().catch(() => ({
-      enabled: env.redisEnabled,
+      enabled: false,
       queues: {},
       totals: {
         waiting: 0,
@@ -375,7 +375,9 @@ export class AdminService {
       },
       runtime: {
         redisEnabled: env.redisEnabled,
-        redisStatus: env.redisEnabled ? getRedis()?.status || "disconnected" : "disabled",
+        redisStatus: env.redisEnabled ? getRedisStatus() : "disabled",
+        queueEnabled: env.queueEnabled,
+        queueAvailable: queueStats.enabled,
         queueTotals: queueStats.totals,
         queues: queueStats.queues
       },

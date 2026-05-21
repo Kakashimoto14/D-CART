@@ -1,6 +1,20 @@
 const required = ["DATABASE_URL", "JWT_SECRET"];
-const redisUrl = process.env.REDIS_URL || "";
+const redisUrl = process.env.REDIS_URL?.trim() || "";
 const redisEnabledFlag = process.env.REDIS_ENABLED;
+const queueEnabledFlag = process.env.QUEUE_ENABLED;
+const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+const corsOrigins =
+  process.env.FRONTEND_URLS ||
+  process.env.CORS_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  process.env.CLIENT_URL ||
+  "http://localhost:5173";
+const redisEnabled =
+  redisEnabledFlag === undefined
+    ? Boolean(redisUrl)
+    : redisEnabledFlag.toLowerCase() === "true" && Boolean(redisUrl);
+const queueEnabled =
+  queueEnabledFlag === undefined ? redisEnabled : queueEnabledFlag.toLowerCase() === "true";
 
 required.forEach((key) => {
   if (!process.env[key]) {
@@ -19,17 +33,11 @@ export const env = {
   refreshCookieSecure:
     process.env.REFRESH_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
   redisUrl,
-  redisEnabled:
-    redisEnabledFlag === undefined
-      ? Boolean(redisUrl)
-      : redisEnabledFlag.toLowerCase() === "true" && Boolean(redisUrl),
+  redisEnabled,
+  queueEnabled,
   appName: process.env.APP_NAME || "D'Cart",
-  frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
-  frontendUrls: (
-    process.env.FRONTEND_URLS ||
-    process.env.FRONTEND_URL ||
-    "http://localhost:5173"
-  )
+  frontendUrl,
+  frontendUrls: corsOrigins
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean),

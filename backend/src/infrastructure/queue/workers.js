@@ -3,7 +3,7 @@ import { env } from "../../config/env.js";
 import { InventoryService } from "../../services/inventory.service.js";
 import { NotificationService } from "../../services/notification.service.js";
 import { logger } from "../logger/logger.js";
-import { getRedis } from "../redis/redis.js";
+import { getRedis, isRedisReady } from "../redis/redis.js";
 
 const inventoryService = new InventoryService();
 const notificationService = new NotificationService();
@@ -61,15 +61,27 @@ const workerDefinitions = [
 const workers = [];
 
 export const initializeWorkers = () => {
+  if (!env.queueEnabled) {
+    logger.info("Queue disabled. Running without background queue workers.");
+    return workers;
+  }
+
   if (!env.redisEnabled) {
+    logger.warn("Queue enabled but Redis is disabled. Queue workers are unavailable.");
     return workers;
   }
 
   const connection = getRedis();
-  if (!connection) {
-    logger.warn("Redis is enabled but not connected. Queue workers are disabled.");
+  if (!connection || !isRedisReady()) {
+    logger.warn("Queue enabled but Redis is not connected. Queue workers are unavailable.");
     return workers;
   }
+
+  if (workers.length > 0) {
+    return workers;
+  }
+
+  logger.info("Queue enabled. Initializing background queue workers.");
 
   for (const definition of workerDefinitions) {
     const worker = new Worker(definition.name, definition.processor, {
