@@ -4,10 +4,12 @@ import { emitOrderChanged } from "../realtime/socket.js";
 import { AppError } from "../utils/AppError.js";
 import { normalizeEmail } from "../utils/normalizeEmail.js";
 import { hashPassword } from "../utils/password.js";
+import { AuditService } from "./audit.service.js";
 import { NotificationService } from "./notification.service.js";
 
 const AVERAGE_RIDER_SPEED_KMH = 18;
 const notificationService = new NotificationService();
+const auditService = new AuditService();
 
 export class DispatchService {
   calculateDistanceKm(originLat, originLon, destinationLat, destinationLon) {
@@ -398,7 +400,7 @@ export class DispatchService {
     };
   }
 
-  async assignRider(orderId, riderId) {
+  async assignRider(orderId, riderId, actorUserId = null) {
     const [order, rider] = await Promise.all([
       prisma.order.findUnique({
         where: { id: orderId },
@@ -480,6 +482,18 @@ export class DispatchService {
       status: order.status,
       type: "rider_assigned"
     });
+    await auditService.record({
+      action: "dispatch.rider.assigned",
+      entityType: "order",
+      entityId: order.id,
+      actorUserId,
+      before: { status: order.status },
+      after: { status: order.status },
+      metadata: {
+        riderId,
+        riderName: assignment.rider?.user?.name || null
+      }
+    });
 
     return {
       id: assignment.id,
@@ -489,7 +503,7 @@ export class DispatchService {
     };
   }
 
-  async startDispatch(orderId) {
+  async startDispatch(orderId, actorUserId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -544,6 +558,18 @@ export class DispatchService {
       status: updated.status,
       type: "dispatch_started"
     });
+    await auditService.record({
+      action: "dispatch.started",
+      entityType: "order",
+      entityId: updated.id,
+      actorUserId,
+      before: { status: order.status },
+      after: { status: updated.status },
+      metadata: {
+        oldStatus: order.status,
+        newStatus: updated.status
+      }
+    });
     await notificationService.enqueueOrderStatus(updated.id, updated.status);
 
     return {
@@ -552,7 +578,7 @@ export class DispatchService {
     };
   }
 
-  async completeDispatch(orderId, payload) {
+  async completeDispatch(orderId, payload, actorUserId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -614,6 +640,19 @@ export class DispatchService {
       status: updated.status,
       type: "delivered"
     });
+    await auditService.record({
+      action: "dispatch.completed",
+      entityType: "order",
+      entityId: updated.id,
+      actorUserId,
+      before: { status: order.status },
+      after: { status: updated.status },
+      metadata: {
+        oldStatus: order.status,
+        newStatus: updated.status,
+        recipientName: payload.recipientName
+      }
+    });
     await notificationService.enqueueOrderStatus(updated.id, updated.status);
 
     return {
@@ -622,7 +661,7 @@ export class DispatchService {
     };
   }
 
-  async failDispatch(orderId, payload) {
+  async failDispatch(orderId, payload, actorUserId = null) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -682,6 +721,19 @@ export class DispatchService {
       userId: updated.userId,
       status: updated.status,
       type: "delivery_failed"
+    });
+    await auditService.record({
+      action: "dispatch.failed",
+      entityType: "order",
+      entityId: updated.id,
+      actorUserId,
+      before: { status: order.status },
+      after: { status: updated.status },
+      metadata: {
+        oldStatus: order.status,
+        newStatus: updated.status,
+        note: payload.proofNote
+      }
     });
     await notificationService.enqueueOrderStatus(updated.id, updated.status);
 

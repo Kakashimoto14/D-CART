@@ -1,9 +1,11 @@
 import { prisma } from "../config/prisma.js";
 import { emitOrderChanged } from "../realtime/socket.js";
 import { AppError } from "../utils/AppError.js";
+import { AuditService } from "./audit.service.js";
 import { NotificationService } from "./notification.service.js";
 
 const notificationService = new NotificationService();
+const auditService = new AuditService();
 
 export class FulfillmentService {
   async getOrderForPacking(orderId) {
@@ -68,6 +70,19 @@ export class FulfillmentService {
       status: updated.status,
       type: "packed"
     });
+    await auditService.record({
+      action: "fulfillment.order.packed",
+      entityType: "order",
+      entityId: updated.id,
+      actorUserId: userId,
+      before: { status: order.status, packedAt: order.packedAt },
+      after: {
+        status: updated.status,
+        packedAt: updated.packedAt,
+        stagingLabel: updated.stagingLabel,
+        stagingZone: updated.stagingZone
+      }
+    });
 
     return this.mapOrder(updated);
   }
@@ -97,6 +112,18 @@ export class FulfillmentService {
       userId: updated.userId,
       status: updated.status,
       type: "ready_for_delivery"
+    });
+    await auditService.record({
+      action: "fulfillment.order.ready",
+      entityType: "order",
+      entityId: updated.id,
+      actorUserId: userId,
+      before: { status: order.status },
+      after: { status: updated.status },
+      metadata: {
+        oldStatus: order.status,
+        newStatus: updated.status
+      }
     });
     await notificationService.enqueueOrderStatus(updated.id, updated.status);
 

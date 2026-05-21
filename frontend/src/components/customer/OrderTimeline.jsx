@@ -8,12 +8,12 @@ const ORDER_STEPS = [
 ];
 
 const orderMessages = {
-  PENDING: "We received your order and will confirm stock and schedule next.",
-  CONFIRMED: "Your basket and delivery details are confirmed.",
-  PACKING: "Our team is preparing your groceries now.",
-  READY_FOR_DELIVERY: "Your order is packed and queued for dispatch.",
-  OUT_FOR_DELIVERY: "Your groceries are on the way.",
-  DELIVERED: "Your order has been completed successfully.",
+  PENDING: "Your order is waiting for confirmation.",
+  CONFIRMED: "Your order is confirmed.",
+  PACKING: "Your order is being prepared.",
+  READY_FOR_DELIVERY: "Your order is ready for delivery.",
+  OUT_FOR_DELIVERY: "Your rider is on the way.",
+  DELIVERED: "Order delivered.",
   CANCELLED: "This order was cancelled. If payment was not completed, no delivery will be attempted."
 };
 

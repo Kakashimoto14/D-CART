@@ -33,22 +33,23 @@ export const updateMyRiderLocation = async (req, res) => {
 export const assignRider = async (req, res) => {
   const assignment = await dispatchService.assignRider(
     Number(req.params.orderId),
-    req.body.riderId
+    req.body.riderId,
+    req.user.id
   );
   res.status(200).json({ assignment });
 };
 
 export const startDispatch = async (req, res) => {
-  const order = await dispatchService.startDispatch(Number(req.params.orderId));
+  const order = await dispatchService.startDispatch(Number(req.params.orderId), req.user.id);
   res.status(200).json({ order });
 };
 
 export const completeDispatch = async (req, res) => {
-  const order = await dispatchService.completeDispatch(Number(req.params.orderId), req.body);
+  const order = await dispatchService.completeDispatch(Number(req.params.orderId), req.body, req.user.id);
   res.status(200).json({ order });
 };
 
 export const failDispatch = async (req, res) => {
-  const order = await dispatchService.failDispatch(Number(req.params.orderId), req.body);
+  const order = await dispatchService.failDispatch(Number(req.params.orderId), req.body, req.user.id);
   res.status(200).json({ order });
 };

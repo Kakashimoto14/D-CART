@@ -16,6 +16,7 @@ import { PaymentService } from "./payment.service.js";
 import { ReceiptService } from "./receipt.service.js";
 import { DeliveryPricingService } from "./deliveryPricing.service.js";
 import { NotificationService } from "./notification.service.js";
+import { AuditService } from "./audit.service.js";
 
 const geofencingService = new GeofencingService();
 const deliverySlotService = new DeliverySlotService();
@@ -24,6 +25,7 @@ const receiptService = new ReceiptService();
 const inventoryService = new InventoryService();
 const deliveryPricingService = new DeliveryPricingService();
 const notificationService = new NotificationService();
+const auditService = new AuditService();
 const categorySummarySelect = { id: true, name: true };
 
 const runAfterCheckoutResponse = (task, context) => {
@@ -38,6 +40,14 @@ const runAfterCheckoutResponse = (task, context) => {
 };
 
 const orderInclude = {
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true
+    }
+  },
   items: {
     include: {
       product: true,
@@ -61,6 +71,15 @@ const orderInclude = {
   deliverySlot: true,
   inventoryReservation: true
 };
+
+const STATUS_SEQUENCE = [
+  "PENDING",
+  "CONFIRMED",
+  "PACKING",
+  "READY_FOR_DELIVERY",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED"
+];
 
 export class OrderService {
   buildDeliveryStrategy(type) {
@@ -95,6 +114,14 @@ export class OrderService {
       stagingLabel: record.stagingLabel,
       stagingZone: record.stagingZone,
       readyForDispatchAt: record.readyForDispatchAt,
+      customer: record.user
+        ? {
+            id: record.user.id,
+            name: record.user.name,
+            email: record.user.email,
+            phone: record.user.phone
+          }
+        : null,
       items: record.items.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -113,6 +140,8 @@ export class OrderService {
       delivery: record.delivery
         ? {
             ...record.delivery,
+            latitude: record.delivery.latitude ? Number(record.delivery.latitude) : null,
+            longitude: record.delivery.longitude ? Number(record.delivery.longitude) : null,
             distanceKm: record.delivery.distanceKm ? Number(record.delivery.distanceKm) : null,
             deliveryFee: Number(record.delivery.deliveryFee),
             estimatedAt: record.delivery.estimatedAt,
@@ -153,9 +182,59 @@ export class OrderService {
         : null,
       deliverySlot: record.deliverySlot || null,
       inventoryReservation: record.inventoryReservation || null,
+      statusHistory: record.statusHistory || [],
       createdAt: record.createdAt,
       updatedAt: record.updatedAt
     };
+  }
+
+  getNextStatus(status) {
+    const currentIndex = STATUS_SEQUENCE.indexOf(status);
+    return currentIndex >= 0 ? STATUS_SEQUENCE[currentIndex + 1] || null : null;
+  }
+
+  async getStatusHistory(orderId) {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        entityType: "order",
+        entityId: String(orderId),
+        action: {
+          in: [
+            "order.status.updated",
+            "fulfillment.order.packed",
+            "fulfillment.order.ready",
+            "dispatch.rider.assigned",
+            "dispatch.started",
+            "dispatch.completed",
+            "dispatch.failed"
+          ]
+        }
+      },
+      include: {
+        actor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 30
+    });
+
+    return logs.reverse().map((log) => ({
+      id: log.id,
+      action: log.action,
+      oldStatus: log.beforeJson?.status || log.metadataJson?.oldStatus || null,
+      newStatus: log.afterJson?.status || log.metadataJson?.newStatus || null,
+      note: log.metadataJson?.note || null,
+      actor: log.actor,
+      createdAt: log.createdAt
+    }));
   }
 
   async checkout(userId, payload) {
@@ -359,6 +438,7 @@ export class OrderService {
           ...deliveryRecord,
           latitude: geoLat,
           longitude: geoLon,
+          placeId: payload.placeId || null,
           distanceKm,
           deliveryFee
         }
@@ -557,6 +637,8 @@ export class OrderService {
       throw new AppError("You do not have permission to access this order.", 403);
     }
 
+    order.statusHistory = await this.getStatusHistory(order.id);
+
     return this.mapOrder(order);
   }
 
@@ -574,7 +656,7 @@ export class OrderService {
     return statusMap[orderStatus] || null;
   }
 
-  async updateStatus(orderId, status) {
+  async updateStatus(orderId, status, actorUserId = null, options = {}) {
     const existing = await prisma.order.findUnique({
       where: { id: orderId },
       include: orderInclude
@@ -584,26 +666,98 @@ export class OrderService {
       throw new AppError("Order not found.", 404);
     }
 
+    if (existing.status === "DELIVERED" && status !== "DELIVERED") {
+      throw new AppError("Delivered orders cannot be moved back to an earlier status.", 400);
+    }
+
     const entity = new Order(existing);
     entity.markStatus(status);
 
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data: { status: entity.status },
-      include: orderInclude
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      if (status === "CANCELLED") {
+        if (existing.inventoryReservationId) {
+          const reservation = await tx.inventoryReservation.findUnique({
+            where: { id: existing.inventoryReservationId }
+          });
 
-    const deliveryStatus = this.getDeliveryStatusForOrder(status);
-    if (updated.delivery && deliveryStatus) {
-      await prisma.delivery.update({
-        where: { id: updated.delivery.id },
-        data: { status: deliveryStatus }
+          if (reservation?.status === "ACTIVE") {
+            await inventoryService.releaseReservation(
+              existing.inventoryReservationId,
+              { status: "RELEASED", reason: options.note || "Admin cancelled order." },
+              tx
+            );
+          }
+        }
+
+        if (existing.deliverySlotId && existing.status !== "CANCELLED") {
+          await deliverySlotService.releaseSlot(existing.deliverySlotId, tx);
+        }
+      }
+
+      if (status === "DELIVERED" && existing.delivery?.assignments?.length) {
+        const activeAssignments = existing.delivery.assignments.filter((assignment) =>
+          ["ASSIGNED", "PICKED_UP"].includes(assignment.status)
+        );
+
+        for (const assignment of activeAssignments) {
+          await tx.deliveryAssignment.update({
+            where: { id: assignment.id },
+            data: {
+              status: "DELIVERED",
+              completedAt: new Date(),
+              proofNote: options.note || assignment.proofNote
+            }
+          });
+          await tx.rider.update({
+            where: { id: assignment.rider.id },
+            data: { isAvailable: true }
+          });
+        }
+      }
+
+      const updateData = {
+        status: entity.status,
+        ...(status === "READY_FOR_DELIVERY" && !existing.readyForDispatchAt
+          ? { readyForDispatchAt: new Date() }
+          : {}),
+        ...(status === "PACKING" && !existing.packedAt ? { packedByUserId: actorUserId } : {})
+      };
+
+      const nextOrder = await tx.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: orderInclude
       });
 
-      updated.delivery.status = deliveryStatus;
-    }
+      const deliveryStatus = this.getDeliveryStatusForOrder(status);
+      if (nextOrder.delivery && deliveryStatus) {
+        await tx.delivery.update({
+          where: { id: nextOrder.delivery.id },
+          data: { status: deliveryStatus }
+        });
+
+        nextOrder.delivery.status = deliveryStatus;
+      }
+
+      return nextOrder;
+    });
 
     const mappedOrder = this.mapOrder(updated);
+
+    await auditService.record({
+      action: "order.status.updated",
+      entityType: "order",
+      entityId: mappedOrder.id,
+      actorUserId,
+      before: { status: existing.status },
+      after: { status: mappedOrder.status },
+      metadata: {
+        oldStatus: existing.status,
+        newStatus: mappedOrder.status,
+        note: options.note || null,
+        nextExpectedStatus: this.getNextStatus(mappedOrder.status)
+      }
+    });
 
     emitOrderChanged({
       orderId: mappedOrder.id,

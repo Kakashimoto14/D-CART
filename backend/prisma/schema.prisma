@@ -294,6 +294,7 @@ model Delivery {
   id          Int                  @id @default(autoincrement())
   orderId     Int                  @unique
   address     String
+  placeId     String?              @db.VarChar(255)
   latitude    Decimal?             @db.Decimal(10, 7)
   longitude   Decimal?             @db.Decimal(10, 7)
   distanceKm  Decimal?             @db.Decimal(10, 2)

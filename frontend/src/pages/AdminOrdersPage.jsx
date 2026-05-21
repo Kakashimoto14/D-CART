@@ -1,3 +1,13 @@
+import {
+  CheckCircle2,
+  ClipboardList,
+  ExternalLink,
+  PackageCheck,
+  Search,
+  Truck,
+  UserRound,
+  X
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminApi } from "../api/adminApi";
 import { dispatchApi } from "../api/dispatchApi";
@@ -41,6 +51,294 @@ const STANDARD_DELIVERY_SHIFTS = [
   { startTime: "15:00", endTime: "17:00", maxOrders: 5 }
 ];
 
+const STATUS_LABELS = {
+  PENDING: "Pending confirmation",
+  CONFIRMED: "Confirmed",
+  PACKING: "Preparing / packing",
+  READY_FOR_DELIVERY: "Ready for delivery",
+  OUT_FOR_DELIVERY: "Out for delivery",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled"
+};
+
+const TIMELINE_ACTION_LABELS = {
+  "fulfillment.order.packed": "Order packed and staged",
+  "fulfillment.order.ready": "Ready for delivery",
+  "dispatch.rider.assigned": "Rider assigned",
+  "dispatch.started": "Out for delivery",
+  "dispatch.completed": "Delivered",
+  "dispatch.failed": "Delivery failed"
+};
+
+const ORDER_STEPS = [
+  "PENDING",
+  "CONFIRMED",
+  "PACKING",
+  "READY_FOR_DELIVERY",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED"
+];
+
+const paymentLabel = (order) =>
+  order?.paymentMethod === "GCASH" ? "GCash via PayMongo" : "Cash on Delivery";
+
+const openMapsUrl = (delivery) => {
+  if (delivery?.latitude && delivery?.longitude) {
+    return `https://www.google.com/maps/search/?api=1&query=${delivery.latitude},${delivery.longitude}`;
+  }
+
+  if (delivery?.address) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(delivery.address)}`;
+  }
+
+  return null;
+};
+
+function OrderProgress({ status }) {
+  const activeIndex = ORDER_STEPS.indexOf(status);
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      {ORDER_STEPS.map((step, index) => {
+        const isDone = activeIndex >= index;
+        return (
+          <div
+            key={step}
+            className={`rounded-2xl border px-3 py-3 text-sm ${
+              isDone ? "border-brand-200 bg-brand-50" : "border-slate-200 bg-white"
+            }`}
+          >
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Step {index + 1}
+            </span>
+            <p className="mt-1 font-semibold text-slate-900">{STATUS_LABELS[step]}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-medium text-slate-800">{value || "Not provided"}</p>
+    </div>
+  );
+}
+
+function OrderDetailDrawer({
+  order,
+  loading,
+  onClose,
+  onStatusAction,
+  onAssignRider,
+  onStartDispatch,
+  onCompleteRefund,
+  riders,
+  busyAction
+}) {
+  if (!order && !loading) return null;
+
+  const latestAssignment = order?.delivery?.assignments?.[0] || null;
+  const mapsUrl = openMapsUrl(order?.delivery);
+  const canCancel = order && !["DELIVERED", "CANCELLED"].includes(order.status);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/40 px-0 sm:px-4">
+      <div className="ml-auto flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl sm:rounded-l-[28px]">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div>
+            <p className="brand-kicker">Order detail</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">
+              {loading ? "Loading order..." : `Order #${order.id}`}
+            </h2>
+          </div>
+          <button type="button" className="btn-secondary px-3 py-2" onClick={onClose} aria-label="Close order details">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex-1 px-5 py-8">
+            <LoadingState label="Loading order detail..." />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={order.status} />
+              <StatusBadge status={order.paymentStatus} />
+              {order.refundStatus ? <StatusBadge status={order.refundStatus} /> : null}
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+              <OrderProgress status={order.status} />
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <DetailRow label="Customer" value={order.customer?.name || "Guest"} />
+              <DetailRow label="Contact" value={order.customer?.phone || order.customer?.email} />
+              <DetailRow label="Payment" value={`${paymentLabel(order)} - ${order.paymentStatus}`} />
+              <DetailRow label="Schedule" value={order.deliverySlot ? `${order.deliverySlot.startTime} - ${order.deliverySlot.endTime}` : "Flexible"} />
+              <DetailRow label="ETA" value={order.delivery?.estimatedAt ? formatDateTime(order.delivery.estimatedAt) : "Awaiting dispatch"} />
+              <DetailRow label="Rider" value={latestAssignment?.rider?.user?.name || latestAssignment?.rider?.name} />
+            </div>
+
+            <div className="mt-4 rounded-[24px] border border-slate-100 bg-slate-50 px-4 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Delivery address</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-800">
+                    {order.delivery?.address || "No delivery address"}
+                  </p>
+                  {order.delivery?.latitude && order.delivery?.longitude ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Pin: {order.delivery.latitude}, {order.delivery.longitude}
+                    </p>
+                  ) : null}
+                </div>
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary px-3 py-2 text-sm"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open map
+                  </a>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-slate-100 bg-white p-4">
+              <p className="text-sm font-bold text-slate-950">Items ordered</p>
+              <div className="mt-3 divide-y divide-slate-100">
+                {order.items.map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-4 py-3 text-sm">
+                    <div>
+                      <p className="font-semibold text-slate-900">{item.product.name}</p>
+                      <p className="text-slate-500">Qty {item.quantity}</p>
+                    </div>
+                    <span className="font-semibold text-slate-900">
+                      {currency(item.price * (item.finalQuantity ?? item.quantity))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">
+                <div className="flex justify-between text-slate-500">
+                  <span>Subtotal</span>
+                  <span>{currency(order.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Delivery fee</span>
+                  <span>{currency(order.deliveryFee)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold text-slate-950">
+                  <span>Total</span>
+                  <span>{currency(order.total)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-slate-100 bg-white p-4">
+              <p className="text-sm font-bold text-slate-950">Next action</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {order.status === "PENDING" ? (
+                  <button type="button" className="btn-primary px-4 py-2" onClick={() => onStatusAction(order, "CONFIRMED")} disabled={busyAction}>
+                    Confirm order
+                  </button>
+                ) : null}
+                {order.status === "CONFIRMED" ? (
+                  <button type="button" className="btn-primary px-4 py-2" onClick={() => onStatusAction(order, "PACKING")} disabled={busyAction}>
+                    Mark preparing
+                  </button>
+                ) : null}
+                {order.status === "PACKING" ? (
+                  <button type="button" className="btn-primary px-4 py-2" onClick={() => onStatusAction(order, "READY_FOR_DELIVERY")} disabled={busyAction}>
+                    Mark ready for delivery
+                  </button>
+                ) : null}
+                {order.status === "READY_FOR_DELIVERY" && !latestAssignment ? (
+                  <select
+                    className="field max-w-xs"
+                    defaultValue=""
+                    onChange={(event) => event.target.value && onAssignRider(order.id, event.target.value)}
+                    disabled={busyAction}
+                  >
+                    <option value="">Assign available rider</option>
+                    {riders
+                      .filter((rider) => rider.isAvailable)
+                      .map((rider) => (
+                        <option key={rider.id} value={rider.id}>
+                          {rider.name} - {rider.vehicleType}
+                        </option>
+                      ))}
+                  </select>
+                ) : null}
+                {order.status === "READY_FOR_DELIVERY" && latestAssignment ? (
+                  <button type="button" className="btn-primary px-4 py-2" onClick={() => onStartDispatch(order.id)} disabled={busyAction}>
+                    Mark out for delivery
+                  </button>
+                ) : null}
+                {order.status === "OUT_FOR_DELIVERY" ? (
+                  <button type="button" className="btn-primary px-4 py-2" onClick={() => onStatusAction(order, "DELIVERED")} disabled={busyAction}>
+                    Mark delivered
+                  </button>
+                ) : null}
+                {order.refundStatus === "PENDING" ? (
+                  <button type="button" className="btn-secondary px-4 py-2" onClick={() => onCompleteRefund(order.id)} disabled={busyAction}>
+                    Complete refund
+                  </button>
+                ) : null}
+                {canCancel ? (
+                  <button type="button" className="btn-danger px-4 py-2" onClick={() => onStatusAction(order, "CANCELLED")} disabled={busyAction}>
+                    Cancel order
+                  </button>
+                ) : null}
+                {["DELIVERED", "CANCELLED"].includes(order.status) && order.refundStatus !== "PENDING" ? (
+                  <p className="text-sm text-slate-500">No further action is required for this order.</p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-slate-100 bg-white p-4">
+              <p className="text-sm font-bold text-slate-950">Status timeline</p>
+              <div className="mt-4 space-y-3">
+                {(order.statusHistory || []).length > 0 ? (
+                  order.statusHistory.map((event) => (
+                    <div key={event.id} className="flex gap-3 rounded-2xl bg-slate-50 px-3 py-3 text-sm">
+                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-brand-500" />
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {event.oldStatus && event.newStatus && event.oldStatus !== event.newStatus
+                            ? `${STATUS_LABELS[event.oldStatus] || event.oldStatus} to ${STATUS_LABELS[event.newStatus] || event.newStatus}`
+                            : TIMELINE_ACTION_LABELS[event.action] || STATUS_LABELS[event.newStatus] || event.action}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {formatDateTime(event.createdAt)}
+                          {event.actor?.name ? ` by ${event.actor.name}` : ""}
+                        </p>
+                        {event.note ? <p className="mt-1 text-xs text-slate-600">{event.note}</p> : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
+                    Status changes will appear here after the next admin action.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AdminOrdersPage() {
   const [dashboard, setDashboard] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -50,18 +348,17 @@ export function AdminOrdersPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [slotDate, setSlotDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [packingForm, setPackingForm] = useState(initialPackingForm);
   const [riderForm, setRiderForm] = useState(initialRiderForm);
   const [deliveryActionForms, setDeliveryActionForms] = useState({});
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [busyAction, setBusyAction] = useState("");
   const [packingOrderId, setPackingOrderId] = useState(null);
-  const [readyingOrderId, setReadyingOrderId] = useState(null);
   const [creatingRider, setCreatingRider] = useState(false);
-  const [assigningOrderId, setAssigningOrderId] = useState(null);
-  const [startingDispatchId, setStartingDispatchId] = useState(null);
-  const [completingDispatchId, setCompletingDispatchId] = useState(null);
-  const [failingDispatchId, setFailingDispatchId] = useState(null);
-  const [completingRefundOrderId, setCompletingRefundOrderId] = useState(null);
   const [generatingSlots, setGeneratingSlots] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -84,17 +381,42 @@ export function AdminOrdersPage() {
     }
   }, []);
 
+  const loadOrderDetail = useCallback(async (orderId) => {
+    setDetailLoading(true);
+    setSelectedOrderId(orderId);
+    try {
+      const order = await orderApi.getById(orderId);
+      setSelectedOrder(order);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Unable to load order detail.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  const refreshAfterAction = async (message) => {
+    setSuccess(message);
+    await loadData();
+    if (selectedOrderId) {
+      await loadOrderDetail(selectedOrderId);
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return orders.filter((order) => {
+      const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
+      if (!matchesStatus) return false;
       if (!normalizedQuery) return true;
       return [
         `#${order.id}`,
         order.customer?.name || "",
+        order.customer?.email || "",
+        order.delivery?.address || "",
         order.status,
         order.paymentStatus,
         order.refundStatus
@@ -103,7 +425,29 @@ export function AdminOrdersPage() {
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [orders, query]);
+  }, [orders, query, statusFilter]);
+
+  const handleStatusAction = async (order, nextStatus) => {
+    const destructive = ["CANCELLED"].includes(nextStatus);
+    if (destructive && !window.confirm(`Cancel order #${order.id}? This will stop fulfillment and delivery.`)) {
+      return;
+    }
+
+    setBusyAction(`${order.id}:${nextStatus}`);
+    setError("");
+    setSuccess("");
+    try {
+      await orderApi.updateStatus(order.id, {
+        status: nextStatus,
+        note: nextStatus === "CANCELLED" ? "Cancelled from admin order workflow." : undefined
+      });
+      await refreshAfterAction(`Order #${order.id} moved to ${STATUS_LABELS[nextStatus] || nextStatus}.`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Unable to update order status.");
+    } finally {
+      setBusyAction("");
+    }
+  };
 
   const handleMarkPacked = async (event) => {
     event.preventDefault();
@@ -115,28 +459,12 @@ export function AdminOrdersPage() {
         stagingLabel: packingForm.stagingLabel,
         stagingZone: packingForm.stagingZone
       });
-      setSuccess(`Order #${packingForm.orderId} marked as packed.`);
       setPackingForm(initialPackingForm);
-      await loadData();
+      await refreshAfterAction(`Order #${packingForm.orderId} staged for delivery.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to mark order packed.");
     } finally {
       setPackingOrderId(null);
-    }
-  };
-
-  const handleMarkReady = async (orderId) => {
-    setReadyingOrderId(orderId);
-    setError("");
-    setSuccess("");
-    try {
-      await fulfillmentApi.markReady(orderId);
-      setSuccess(`Order #${orderId} is ready for dispatch.`);
-      await loadData();
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to mark order ready.");
-    } finally {
-      setReadyingOrderId(null);
     }
   };
 
@@ -147,9 +475,8 @@ export function AdminOrdersPage() {
     setSuccess("");
     try {
       const rider = await dispatchApi.createRider(riderForm);
-      setSuccess(`Rider account created for ${rider.name}.`);
       setRiderForm(initialRiderForm);
-      await loadData();
+      await refreshAfterAction(`Rider account created for ${rider.name}.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to create rider.");
     } finally {
@@ -158,32 +485,30 @@ export function AdminOrdersPage() {
   };
 
   const handleAssignRider = async (orderId, riderId) => {
-    setAssigningOrderId(orderId);
+    setBusyAction(`${orderId}:assign`);
     setError("");
     setSuccess("");
     try {
       await dispatchApi.assignRider(orderId, Number(riderId));
-      setSuccess(`Rider assigned to order #${orderId}.`);
-      await loadData();
+      await refreshAfterAction(`Rider assigned to order #${orderId}.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to assign rider.");
     } finally {
-      setAssigningOrderId(null);
+      setBusyAction("");
     }
   };
 
   const handleStartDispatch = async (orderId) => {
-    setStartingDispatchId(orderId);
+    setBusyAction(`${orderId}:dispatch`);
     setError("");
     setSuccess("");
     try {
       await dispatchApi.startDispatch(orderId);
-      setSuccess(`Order #${orderId} is now out for delivery.`);
-      await loadData();
+      await refreshAfterAction(`Order #${orderId} is now out for delivery.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to start dispatch.");
     } finally {
-      setStartingDispatchId(null);
+      setBusyAction("");
     }
   };
 
@@ -203,7 +528,8 @@ export function AdminOrdersPage() {
       setError("Recipient name is required to complete a delivery.");
       return;
     }
-    setCompletingDispatchId(assignment.id);
+
+    setBusyAction(`${assignment.order.id}:complete`);
     setError("");
     setSuccess("");
     try {
@@ -211,13 +537,12 @@ export function AdminOrdersPage() {
         recipientName: form.recipientName.trim(),
         proofNote: form.proofNote.trim() || null
       });
-      setSuccess(`Order #${assignment.order.id} marked as delivered.`);
       setDeliveryActionForms((current) => ({ ...current, [assignment.id]: createInitialDeliveryActionForm() }));
-      await loadData();
+      await refreshAfterAction(`Order #${assignment.order.id} marked as delivered.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to complete dispatch.");
     } finally {
-      setCompletingDispatchId(null);
+      setBusyAction("");
     }
   };
 
@@ -227,35 +552,42 @@ export function AdminOrdersPage() {
       setError("A delivery failure note is required.");
       return;
     }
-    setFailingDispatchId(assignment.id);
+
+    if (!window.confirm(`Mark delivery for order #${assignment.order.id} as failed?`)) {
+      return;
+    }
+
+    setBusyAction(`${assignment.order.id}:fail`);
     setError("");
     setSuccess("");
     try {
       await dispatchApi.failDispatch(assignment.order.id, {
         proofNote: form.proofNote.trim()
       });
-      setSuccess(`Order #${assignment.order.id} marked as delivery failed.`);
       setDeliveryActionForms((current) => ({ ...current, [assignment.id]: createInitialDeliveryActionForm() }));
-      await loadData();
+      await refreshAfterAction(`Order #${assignment.order.id} marked as delivery failed.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to fail dispatch.");
     } finally {
-      setFailingDispatchId(null);
+      setBusyAction("");
     }
   };
 
   const handleCompleteRefund = async (orderId) => {
-    setCompletingRefundOrderId(orderId);
+    if (!window.confirm(`Mark refund for order #${orderId} as completed?`)) {
+      return;
+    }
+
+    setBusyAction(`${orderId}:refund`);
     setError("");
     setSuccess("");
     try {
       await adminApi.completeRefund(orderId);
-      setSuccess(`Refund for order #${orderId} marked as completed.`);
-      await loadData();
+      await refreshAfterAction(`Refund for order #${orderId} marked as completed.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to complete refund.");
     } finally {
-      setCompletingRefundOrderId(null);
+      setBusyAction("");
     }
   };
 
@@ -266,8 +598,7 @@ export function AdminOrdersPage() {
     setSuccess("");
     try {
       await deliverySlotApi.generate(slotDate, STANDARD_DELIVERY_SHIFTS);
-      setSuccess(`Delivery slots generated for ${slotDate}.`);
-      await loadData();
+      await refreshAfterAction(`Delivery slots generated for ${slotDate}.`);
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to generate delivery slots.");
     } finally {
@@ -280,99 +611,106 @@ export function AdminOrdersPage() {
   }
 
   const upcomingSlots = deliverySlots.filter((slot) => new Date(slot.date) >= new Date());
+  const packingOrders = orders.filter((order) => order.status === "PACKING");
+  const pendingCount = orders.filter((order) => order.status === "PENDING").length;
 
   return (
     <div className="space-y-6">
       <PageHero
-        eyebrow="Orders"
-        title="Fulfillment, dispatch, and refund control"
-        description="This view keeps the full back-office lifecycle reachable without overwhelming the main dashboard."
+        eyebrow="Fulfillment"
+        title="Orders and dispatch"
+        description="Confirm orders, prepare groceries, assign riders, and complete deliveries from one clear workflow."
       />
 
-      {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
-      {success ? <p className="text-sm font-medium text-emerald-600">{success}</p> : null}
+      {error ? <p className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</p> : null}
+      {success ? <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</p> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Pending orders" value={dashboard?.totals?.pendingOrders || 0} />
+        <StatCard label="Pending confirmation" value={pendingCount} tone={pendingCount > 0 ? "warning" : "default"} icon={ClipboardList} />
         <StatCard label="Pending refunds" value={dashboard?.totals?.pendingRefunds || 0} tone={(dashboard?.totals?.pendingRefunds || 0) > 0 ? "warning" : "default"} />
-        <StatCard label="Ready for dispatch" value={dispatchBoard.readyOrders.length} />
-        <StatCard label="Active deliveries" value={dispatchBoard.activeAssignments.length} tone="success" />
+        <StatCard label="Ready for delivery" value={dispatchBoard.readyOrders.length} icon={PackageCheck} />
+        <StatCard label="Active deliveries" value={dispatchBoard.activeAssignments.length} tone="success" icon={Truck} />
       </div>
 
-      <SectionCard title="Order queue" description="Search orders and resolve packing or refund exceptions.">
+      <SectionCard title="Order queue" description="Click an order to view customer details, payment status, timeline, and the next valid action.">
         <div className="space-y-5">
           <FilterToolbar
             searchValue={query}
             onSearchChange={setQuery}
-            searchPlaceholder="Search by order, customer, status, payment, or refund"
-          />
-          <div className="space-y-3">
-            {filteredOrders.map((order) => (
-              <div key={order.id} className="rounded-[22px] border border-slate-100 bg-slate-50/70 p-4">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-lg font-semibold text-slate-900">Order #{order.id}</p>
-                      <StatusBadge status={order.status} />
-                      <StatusBadge status={order.paymentStatus} />
-                      {order.refundStatus ? <StatusBadge status={order.refundStatus} /> : null}
-                    </div>
-                    <div className="mt-3 grid gap-2 text-sm text-slate-500 sm:grid-cols-2 xl:grid-cols-4">
-                      <span>Customer: {order.customer?.name || "Guest"}</span>
-                      <span>Total: {currency(order.total)}</span>
-                      <span>Placed: {formatDateTime(order.createdAt)}</span>
-                      <span>Delivery: {order.deliverySlot ? `${order.deliverySlot.startTime}-${order.deliverySlot.endTime}` : "Flexible"}</span>
-                    </div>
-                    {order.stagingLabel || order.stagingZone ? (
-                      <p className="mt-3 text-sm text-slate-500">
-                        Staging: {order.stagingLabel || "No label"} {order.stagingZone ? `• ${order.stagingZone}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {order.status === "PACKING" ? (
-                      <button
-                        type="button"
-                        className="btn-secondary px-4 py-2"
-                        onClick={() =>
-                          setPackingForm({
-                            orderId: String(order.id),
-                            stagingLabel: order.stagingLabel || "",
-                            stagingZone: order.stagingZone || ""
-                          })
-                        }
-                      >
-                        Prepare packing
-                      </button>
-                    ) : null}
-                    {order.status === "PACKED" ? (
-                      <button
-                        type="button"
-                        className="btn-primary px-4 py-2"
-                        onClick={() => handleMarkReady(order.id)}
-                        disabled={readyingOrderId === order.id}
-                      >
-                        {readyingOrderId === order.id ? "Updating..." : "Mark ready"}
-                      </button>
-                    ) : null}
-                    {order.refundStatus === "PENDING" ? (
-                      <button
-                        type="button"
-                        className="btn-secondary px-4 py-2"
-                        onClick={() => handleCompleteRefund(order.id)}
-                        disabled={completingRefundOrderId === order.id}
-                      >
-                        {completingRefundOrderId === order.id ? "Completing..." : "Complete refund"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+            searchPlaceholder="Search by order, customer, address, status, or payment"
+          >
+            <select className="field min-w-[190px]" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="ALL">All fulfillment statuses</option>
+              {ORDER_STEPS.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </FilterToolbar>
+
+          <div className="flex flex-wrap gap-2">
+            {["ALL", "PENDING", "CONFIRMED", "PACKING", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY"].map((status) => (
+              <button
+                key={status}
+                type="button"
+                className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                  statusFilter === status ? "border-brand-300 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-600"
+                }`}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status === "ALL" ? "All" : STATUS_LABELS[status]}
+              </button>
             ))}
+          </div>
+
+          <div className="space-y-3">
+            {filteredOrders.map((order) => {
+              const latestAssignment = order.delivery?.assignments?.[0] || null;
+              return (
+                <button
+                  key={order.id}
+                  type="button"
+                  className="w-full rounded-[22px] border border-slate-100 bg-slate-50/70 p-4 text-left transition hover:border-brand-200 hover:bg-white hover:shadow-sm"
+                  onClick={() => loadOrderDetail(order.id)}
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-lg font-semibold text-slate-900">Order #{order.id}</p>
+                        <StatusBadge status={order.status} />
+                        <StatusBadge status={order.paymentStatus} />
+                      </div>
+                      <div className="mt-3 grid gap-2 text-sm text-slate-500 sm:grid-cols-2 xl:grid-cols-4">
+                        <span>Customer: {order.customer?.name || "Guest"}</span>
+                        <span>Total: {currency(order.total)}</span>
+                        <span>Placed: {formatDateTime(order.createdAt)}</span>
+                        <span>Delivery: {order.deliverySlot ? `${order.deliverySlot.startTime}-${order.deliverySlot.endTime}` : "Flexible"}</span>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm text-slate-500">
+                        {order.delivery?.address || "No delivery address"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {latestAssignment ? (
+                        <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                          <UserRound className="mr-1.5 h-3.5 w-3.5" />
+                          {latestAssignment.rider?.user?.name || latestAssignment.rider?.name || "Assigned"}
+                        </span>
+                      ) : null}
+                      <span className="btn-secondary px-4 py-2 text-sm">View workflow</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
             {filteredOrders.length === 0 ? (
-              <p className="rounded-[20px] border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
-                No orders match the current search.
-              </p>
+              <div className="rounded-[20px] border border-dashed border-slate-200 px-4 py-10 text-center">
+                <Search className="mx-auto h-8 w-8 text-slate-300" />
+                <p className="mt-3 font-semibold text-slate-900">No orders found</p>
+                <p className="mt-1 text-sm text-slate-500">Try a different search or status filter.</p>
+              </div>
             ) : null}
           </div>
         </div>
@@ -380,7 +718,7 @@ export function AdminOrdersPage() {
 
       <div className="grid gap-6 2xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-6">
-          <SectionCard title="Packing station" description="Anchor the pack-and-stage step before dispatch.">
+          <SectionCard title="Packing station" description="Stage packed orders with a label and zone before dispatch.">
             <form onSubmit={handleMarkPacked} className="space-y-4">
               <FormSection title="Pack order">
                 <div className="grid gap-4">
@@ -391,13 +729,11 @@ export function AdminOrdersPage() {
                     required
                   >
                     <option value="">Choose order in packing</option>
-                    {orders
-                      .filter((order) => order.status === "PACKING")
-                      .map((order) => (
-                        <option key={order.id} value={order.id}>
-                          Order #{order.id} • {order.customer?.name || "Guest"}
-                        </option>
-                      ))}
+                    {packingOrders.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        Order #{order.id} - {order.customer?.name || "Guest"}
+                      </option>
+                    ))}
                   </select>
                   <input
                     className="field"
@@ -419,7 +755,7 @@ export function AdminOrdersPage() {
                   />
                 </div>
               </FormSection>
-              <button type="submit" className="btn-primary px-5 py-3" disabled={packingOrderId !== null}>
+              <button type="submit" className="btn-primary px-5 py-3" disabled={packingOrderId !== null || packingOrders.length === 0}>
                 {packingOrderId !== null ? "Saving..." : "Mark packed"}
               </button>
             </form>
@@ -440,7 +776,7 @@ export function AdminOrdersPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-900">
-                        {slot.date} • {slot.startTime} - {slot.endTime}
+                        {slot.date} - {slot.startTime} to {slot.endTime}
                       </p>
                       <p className="mt-1">Booked {slot.currentOrders}/{slot.maxOrders} orders</p>
                     </div>
@@ -466,7 +802,7 @@ export function AdminOrdersPage() {
                           <StatusBadge status={order.status} />
                         </div>
                         <p className="mt-2 text-sm text-slate-500">
-                          {order.customer?.name || "Guest"} • {order.stagingLabel || "No label"} {order.stagingZone ? `• ${order.stagingZone}` : ""}
+                          {order.customer?.name || "Guest"} - {order.stagingLabel || "No label"} {order.stagingZone ? `- ${order.stagingZone}` : ""}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-3">
@@ -475,23 +811,23 @@ export function AdminOrdersPage() {
                             type="button"
                             className="btn-primary px-4 py-2"
                             onClick={() => handleStartDispatch(order.id)}
-                            disabled={startingDispatchId === order.id}
+                            disabled={Boolean(busyAction)}
                           >
-                            {startingDispatchId === order.id ? "Starting..." : "Start dispatch"}
+                            Mark out for delivery
                           </button>
                         ) : (
                           <select
                             className="field min-w-[220px]"
                             defaultValue=""
                             onChange={(event) => event.target.value && handleAssignRider(order.id, event.target.value)}
-                            disabled={assigningOrderId === order.id}
+                            disabled={Boolean(busyAction)}
                           >
                             <option value="">Assign available rider</option>
                             {dispatchBoard.riders
                               .filter((rider) => rider.isAvailable)
                               .map((rider) => (
                                 <option key={rider.id} value={rider.id}>
-                                  {rider.name} • {rider.vehicleType}
+                                  {rider.name} - {rider.vehicleType}
                                 </option>
                               ))}
                           </select>
@@ -530,7 +866,7 @@ export function AdminOrdersPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="font-semibold text-slate-900">
-                            Order #{assignment.order?.id} • {assignment.rider?.name}
+                            Order #{assignment.order?.id} - {assignment.rider?.name}
                           </p>
                           <p className="mt-1 text-sm text-slate-500">
                             {assignment.delivery?.address || "No delivery address"}
@@ -557,17 +893,18 @@ export function AdminOrdersPage() {
                           type="button"
                           className="btn-primary px-4 py-2"
                           onClick={() => handleCompleteDispatch(assignment)}
-                          disabled={completingDispatchId === assignment.id}
+                          disabled={Boolean(busyAction)}
                         >
-                          {completingDispatchId === assignment.id ? "Completing..." : "Complete delivery"}
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Complete delivery
                         </button>
                         <button
                           type="button"
                           className="btn-danger px-4 py-2"
                           onClick={() => handleFailDispatch(assignment)}
-                          disabled={failingDispatchId === assignment.id}
+                          disabled={Boolean(busyAction)}
                         >
-                          {failingDispatchId === assignment.id ? "Saving..." : "Mark failed"}
+                          Mark failed
                         </button>
                       </div>
                     </div>
@@ -579,6 +916,21 @@ export function AdminOrdersPage() {
           </SectionCard>
         </div>
       </div>
+
+      <OrderDetailDrawer
+        order={selectedOrder}
+        loading={detailLoading}
+        onClose={() => {
+          setSelectedOrderId(null);
+          setSelectedOrder(null);
+        }}
+        onStatusAction={handleStatusAction}
+        onAssignRider={handleAssignRider}
+        onStartDispatch={handleStartDispatch}
+        onCompleteRefund={handleCompleteRefund}
+        riders={dispatchBoard.riders}
+        busyAction={Boolean(busyAction)}
+      />
     </div>
   );
 }

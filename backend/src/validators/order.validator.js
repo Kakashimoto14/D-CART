@@ -11,6 +11,7 @@ export const checkoutSchema = z.object({
     .default("COD"),
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
+  placeId: z.string().trim().max(255).optional().nullable(),
   accuracyMeters: z.coerce.number().positive().max(10000).optional().nullable(),
   deliverySlotId: z.coerce.number().int().positive().optional().nullable()
 });
@@ -28,7 +29,8 @@ export const updateOrderStatusSchema = z.object({
     "OUT_FOR_DELIVERY",
     "DELIVERED",
     "CANCELLED"
-  ])
+  ]),
+  note: z.string().trim().max(255).optional().nullable()
 });
 
 export const substitutionReviewSchema = z.object({

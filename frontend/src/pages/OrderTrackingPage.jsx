@@ -20,6 +20,18 @@ const slotLabel = (slot) => {
   return `${slot.startTime} - ${slot.endTime}`;
 };
 
+const mapsUrl = (delivery) => {
+  if (delivery?.latitude && delivery?.longitude) {
+    return `https://www.google.com/maps/search/?api=1&query=${delivery.latitude},${delivery.longitude}`;
+  }
+
+  if (delivery?.address) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(delivery.address)}`;
+  }
+
+  return null;
+};
+
 export function OrderTrackingPage() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
@@ -76,6 +88,7 @@ export function OrderTrackingPage() {
   }
 
   const latestAssignment = order.delivery?.assignments?.[0] || null;
+  const deliveryMapUrl = mapsUrl(order.delivery);
 
   return (
     <section className="space-y-6">
@@ -180,6 +193,21 @@ export function OrderTrackingPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   {order.delivery?.address || "Awaiting delivery details"}
                 </p>
+                {order.delivery?.latitude && order.delivery?.longitude ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Pin {order.delivery.latitude}, {order.delivery.longitude}
+                  </p>
+                ) : null}
+                {deliveryMapUrl ? (
+                  <a
+                    href={deliveryMapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+                  >
+                    Open in Google Maps
+                  </a>
+                ) : null}
               </div>
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Schedule</p>

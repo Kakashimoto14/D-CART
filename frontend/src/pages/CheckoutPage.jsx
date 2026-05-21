@@ -1,5 +1,5 @@
-import { Clock3, CreditCard, MapPinned, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Clock3, CreditCard, LocateFixed, MapPinned, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { deliverySlotApi } from "../api/deliverySlotApi";
 import { geofencingApi } from "../api/geofencingApi";
@@ -12,6 +12,43 @@ import { getApiErrorMessage, getCheckoutErrorMessage } from "../utils/apiError";
 import { currency } from "../utils/format";
 
 const ADDRESS_KEY = "dcart_delivery_address";
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+let googleMapsLoadPromise = null;
+
+const loadGoogleMaps = () => {
+  if (!GOOGLE_MAPS_API_KEY) {
+    return Promise.reject(new Error("Google Maps API key is not configured."));
+  }
+
+  if (window.google?.maps?.places) {
+    return Promise.resolve(window.google);
+  }
+
+  if (googleMapsLoadPromise) {
+    return googleMapsLoadPromise;
+  }
+
+  googleMapsLoadPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector("script[data-dcart-google-maps]");
+    window.__dcartGoogleMapsLoaded = () => resolve(window.google);
+
+    if (existingScript) {
+      existingScript.addEventListener("error", () => reject(new Error("Google Maps failed to load.")));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=__dcartGoogleMapsLoaded`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.dcartGoogleMaps = "true";
+    script.onerror = () => reject(new Error("Google Maps failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return googleMapsLoadPromise;
+};
+
 const STEPS = [
   { id: 1, title: "Delivery details" },
   { id: 2, title: "Schedule" },
@@ -26,11 +63,19 @@ export function CheckoutPage() {
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [loadingQuote, setLoadingQuote] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [mapsStatus, setMapsStatus] = useState(GOOGLE_MAPS_API_KEY ? "loading" : "manual");
+  const [mapsError, setMapsError] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [geoResult, setGeoResult] = useState(null);
   const [step, setStep] = useState(1);
+  const addressInputRef = useRef(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
+  const autocompleteRef = useRef(null);
   const [form, setForm] = useState(() => ({
     address: window.localStorage.getItem(ADDRESS_KEY) || "",
     deliveryType: "SAME_DAY",
@@ -38,6 +83,7 @@ export function CheckoutPage() {
     paymentMethod: "COD",
     latitude: null,
     longitude: null,
+    placeId: null,
     accuracyMeters: null,
     deliverySlotId: ""
   }));
@@ -82,6 +128,32 @@ export function CheckoutPage() {
     }
   };
 
+  const applySelectedLocation = async ({
+    address,
+    latitude,
+    longitude,
+    accuracyMeters = null,
+    placeId = null
+  }) => {
+    setForm((current) => ({
+      ...current,
+      address: address || current.address,
+      latitude,
+      longitude,
+      accuracyMeters,
+      placeId
+    }));
+
+    return requestDeliveryQuote({
+      latitude,
+      longitude,
+      accuracyMeters,
+      deliveryType: form.deliveryType,
+      deliverySlotId: form.deliverySlotId ? Number(form.deliverySlotId) : null,
+      orderSubtotal: cart?.subtotal || 0
+    });
+  };
+
   useEffect(() => {
     const loadSlots = async () => {
       try {
@@ -106,6 +178,121 @@ export function CheckoutPage() {
   useEffect(() => {
     window.localStorage.setItem(ADDRESS_KEY, form.address);
   }, [form.address]);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_API_KEY) {
+      setMapsStatus("manual");
+      setMapsError("Google Maps is not configured. You can still type your address and use browser location detection.");
+      return;
+    }
+
+    let cancelled = false;
+    loadGoogleMaps()
+      .then(() => {
+        if (!cancelled) {
+          setMapsStatus("ready");
+          setMapsError("");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMapsStatus("failed");
+          setMapsError("Google Maps failed to load. You can still type your address and use browser location detection.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mapsStatus !== "ready" || !addressInputRef.current || autocompleteRef.current) {
+      return undefined;
+    }
+
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      componentRestrictions: { country: "ph" },
+      fields: ["formatted_address", "geometry", "name", "place_id"]
+    });
+
+    const listener = autocompleteRef.current.addListener("place_changed", () => {
+      const place = autocompleteRef.current.getPlace();
+      const location = place?.geometry?.location;
+
+      if (!location) {
+        setError("Select an address suggestion with a valid map location.");
+        return;
+      }
+
+      applySelectedLocation({
+        address: place.formatted_address || place.name || form.address,
+        latitude: location.lat(),
+        longitude: location.lng(),
+        placeId: place.place_id || null
+      }).catch(() => {
+        setError("Unable to verify the selected address. Please try another suggestion.");
+      });
+    });
+
+    return () => {
+      listener.remove();
+      autocompleteRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapsStatus]);
+
+  useEffect(() => {
+    if (mapsStatus !== "ready" || !mapRef.current || form.latitude === null || form.longitude === null) {
+      return undefined;
+    }
+
+    const center = {
+      lat: Number(form.latitude),
+      lng: Number(form.longitude)
+    };
+
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
+        center,
+        zoom: 16,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+      });
+    } else {
+      mapInstanceRef.current.setCenter(center);
+    }
+
+    if (!markerRef.current) {
+      markerRef.current = new window.google.maps.Marker({
+        map: mapInstanceRef.current,
+        position: center,
+        draggable: true,
+        title: "Delivery pin"
+      });
+
+      markerRef.current.addListener("dragend", () => {
+        const position = markerRef.current.getPosition();
+        if (!position) return;
+
+        applySelectedLocation({
+          latitude: position.lat(),
+          longitude: position.lng(),
+          address: form.address,
+          accuracyMeters: null,
+          placeId: null
+        }).catch(() => {
+          setError("Unable to verify the adjusted map pin. Please try again.");
+        });
+      });
+    } else {
+      markerRef.current.setPosition(center);
+    }
+
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapsStatus, form.latitude, form.longitude]);
 
   useEffect(() => {
     if (!cart?.subtotal || form.latitude === null || form.longitude === null) {
@@ -134,38 +321,46 @@ export function CheckoutPage() {
     setError("");
     setSuccess("");
     setGeoResult(null);
+    setDetectingLocation(true);
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
         const accuracyMeters = position.coords.accuracy || null;
-
-        setForm((current) => ({
-          ...current,
-          latitude,
-          longitude,
-          accuracyMeters
-        }));
+        let detectedAddress = form.address;
+        let detectedPlaceId = null;
 
         try {
-          await requestDeliveryQuote({
+          if (window.google?.maps?.Geocoder) {
+            const geocoder = new window.google.maps.Geocoder();
+            const result = await geocoder.geocode({
+              location: { lat: latitude, lng: longitude }
+            });
+            const bestMatch = result.results?.[0];
+            detectedAddress = bestMatch?.formatted_address || detectedAddress;
+            detectedPlaceId = bestMatch?.place_id || null;
+          }
+
+          await applySelectedLocation({
+            address: detectedAddress,
             latitude,
             longitude,
             accuracyMeters,
-            deliveryType: form.deliveryType,
-            deliverySlotId: form.deliverySlotId ? Number(form.deliverySlotId) : null,
-            orderSubtotal: cart?.subtotal || 0
+            placeId: detectedPlaceId
           });
         } catch (_geoError) {
           setError("Unable to verify your location. Please try again.");
           setGeoResult(null);
+        } finally {
+          setDetectingLocation(false);
         }
       },
       () => {
         setError(
-          "Unable to detect your location. Please ensure location access is enabled in your browser settings."
+          "Location permission was denied or timed out. You can enable location access in your browser settings and try again."
         );
+        setDetectingLocation(false);
       },
       {
         enableHighAccuracy: true,
@@ -214,6 +409,7 @@ export function CheckoutPage() {
         substitutionPreference: form.substitutionPreference,
         latitude: form.latitude,
         longitude: form.longitude,
+        placeId: form.placeId || undefined,
         accuracyMeters: form.accuracyMeters ?? undefined,
         deliverySlotId: form.deliverySlotId ? Number(form.deliverySlotId) : undefined
       });
@@ -300,15 +496,19 @@ export function CheckoutPage() {
             </div>
 
             <div className="mt-5 space-y-4">
-              <textarea
+              <input
+                ref={addressInputRef}
                 name="address"
-                rows="3"
                 placeholder="House number, street, barangay, city/municipality, province"
                 value={form.address}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, address: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    address: event.target.value,
+                    placeId: null
+                  }))
                 }
-                className="field resize-none"
+                className="field"
                 required
               />
 
@@ -319,13 +519,37 @@ export function CheckoutPage() {
                     <p className="text-xs text-slate-500">
                       {isLocationVerified
                         ? "Your location is verified and inside our delivery area."
-                        : "Verify your location so we can calculate delivery safely."}
+                        : mapsStatus === "ready"
+                          ? "Choose an address suggestion, detect your location, or adjust the pin."
+                          : "Type your address and use browser location detection so we can calculate delivery safely."}
                     </p>
                   </div>
-                  <button type="button" onClick={detectLocation} className="btn-secondary px-3 py-2 text-sm">
-                    {loadingQuote ? "Checking..." : "Detect location"}
+                  <button type="button" onClick={detectLocation} className="btn-secondary px-3 py-2 text-sm" disabled={detectingLocation || loadingQuote}>
+                    <LocateFixed className="mr-2 h-4 w-4" />
+                    {detectingLocation || loadingQuote ? "Checking..." : "Use my location"}
                   </button>
                 </div>
+
+                {mapsError ? (
+                  <div className="mt-3 rounded-[18px] border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                    {mapsError}
+                  </div>
+                ) : null}
+
+                {mapsStatus === "ready" && form.latitude !== null && form.longitude !== null ? (
+                  <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white">
+                    <div ref={mapRef} className="h-64 w-full" />
+                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+                      Drag the pin if the marker is not exactly on your delivery entrance.
+                    </div>
+                  </div>
+                ) : null}
+
+                {form.latitude !== null && form.longitude !== null ? (
+                  <div className="mt-3 rounded-[18px] border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600">
+                    Verified pin: {Number(form.latitude).toFixed(6)}, {Number(form.longitude).toFixed(6)}
+                  </div>
+                ) : null}
 
                 {geoResult?.isWithinRadius ? (
                   <div className="mt-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
@@ -554,6 +778,15 @@ export function CheckoutPage() {
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Delivery fee</span>
                 <span className="font-semibold text-slate-900">{currency(deliveryFee)}</span>
+              </div>
+              <div className="border-t border-slate-200 pt-3">
+                <span className="block text-slate-500">Verified address</span>
+                <span className="mt-1 block font-semibold text-slate-900">{form.address}</span>
+                {form.latitude !== null && form.longitude !== null ? (
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Pin {Number(form.latitude).toFixed(6)}, {Number(form.longitude).toFixed(6)}
+                  </span>
+                ) : null}
               </div>
               <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-base font-semibold">
                 <span>Total</span>
