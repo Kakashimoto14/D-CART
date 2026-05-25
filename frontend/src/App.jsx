@@ -18,6 +18,7 @@ const AdminSettingsPage = lazy(() => import("./pages/AdminSettingsPage.jsx").the
 const AdminSuppliersPage = lazy(() => import("./pages/AdminSuppliersPage.jsx").then((module) => ({ default: module.AdminSuppliersPage })));
 const AccountPage = lazy(() => import("./pages/AccountPage.jsx").then((module) => ({ default: module.AccountPage })));
 const CartPage = lazy(() => import("./pages/CartPage.jsx").then((module) => ({ default: module.CartPage })));
+const CategoriesPage = lazy(() => import("./pages/CategoriesPage.jsx").then((module) => ({ default: module.CategoriesPage })));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx").then((module) => ({ default: module.CheckoutPage })));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage.jsx").then((module) => ({ default: module.ForgotPasswordPage })));
 const HomePage = lazy(() => import("./pages/HomePage.jsx").then((module) => ({ default: module.HomePage })));
@@ -27,6 +28,7 @@ const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx").then((module) => 
 const PaymentCancelledPage = lazy(() => import("./pages/PaymentCancelledPage.jsx").then((module) => ({ default: module.PaymentCancelledPage })));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage.jsx").then((module) => ({ default: module.PaymentSuccessPage })));
 const PickerDashboardPage = lazy(() => import("./pages/PickerDashboardPage.jsx").then((module) => ({ default: module.PickerDashboardPage })));
+const PickerCatalogPage = lazy(() => import("./pages/PickerCatalogPage.jsx").then((module) => ({ default: module.PickerCatalogPage })));
 const ProductsPage = lazy(() => import("./pages/ProductsPage.jsx").then((module) => ({ default: module.ProductsPage })));
 const RegisterPage = lazy(() => import("./pages/RegisterPage.jsx").then((module) => ({ default: module.RegisterPage })));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.jsx").then((module) => ({ default: module.ResetPasswordPage })));
@@ -129,7 +131,7 @@ export default function App() {
         <Route
           path="/products"
           element={
-            <ProtectedRoute roles={["CUSTOMER", "STAFF"]}>
+            <ProtectedRoute roles={["CUSTOMER"]}>
               <RouteLoader>
                 <ProductsPage />
               </RouteLoader>
@@ -184,6 +186,14 @@ export default function App() {
                 <AccountPage />
               </RouteLoader>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/categories"
+          element={
+            <RouteLoader>
+              <CategoriesPage />
+            </RouteLoader>
           }
         />
         <Route
@@ -287,7 +297,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/categories" element={<Navigate to="/admin/categories" replace />} />
         <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
         <Route path="/notifications" element={<Navigate to="/admin/notifications" replace />} />
         <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
@@ -297,6 +306,16 @@ export default function App() {
             <ProtectedRoute roles={["STAFF", "ADMIN"]}>
               <RouteLoader>
                 <PickerDashboardPage />
+              </RouteLoader>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/picker/catalog"
+          element={
+            <ProtectedRoute roles={["STAFF", "ADMIN"]}>
+              <RouteLoader>
+                <PickerCatalogPage />
               </RouteLoader>
             </ProtectedRoute>
           }

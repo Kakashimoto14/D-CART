@@ -7,11 +7,15 @@ const addMock = jest.fn();
 const findReservationMock = jest.fn();
 const findReservationsMock = jest.fn();
 const countReservationsMock = jest.fn();
+const productFindManyMock = jest.fn();
 const transactionMock = jest.fn();
 const auditRecordMock = jest.fn();
 
 jest.unstable_mockModule("../src/config/prisma.js", () => ({
   prisma: {
+    product: {
+      findMany: productFindManyMock
+    },
     inventoryReservation: {
       findUnique: findReservationMock,
       findMany: findReservationsMock,
@@ -49,6 +53,97 @@ const { InventoryService } = await import("../src/services/inventory.service.js"
 describe("InventoryService queue runtime helpers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("builds low-stock alerts from product inventory snapshots and missing inventory records", async () => {
+    productFindManyMock.mockResolvedValue([
+      {
+        id: 1,
+        name: "Low threshold item",
+        price: 99,
+        stock: 4,
+        unit: "pc",
+        barcode: "SKU-1",
+        categoryId: 3,
+        category: { id: 3, name: "Pantry" },
+        createdAt: new Date("2026-05-20T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-20T10:00:00.000Z"),
+        inventoryItem: {
+          productId: 1,
+          onHandQty: 6,
+          reservedQty: 2,
+          availableQty: 4,
+          reorderPoint: 5,
+          reorderQty: 12,
+          safetyStockQty: 2,
+          isActive: true,
+          createdAt: new Date("2026-05-20T09:00:00.000Z"),
+          updatedAt: new Date("2026-05-20T10:00:00.000Z"),
+          batches: []
+        }
+      },
+      {
+        id: 2,
+        name: "Legacy product without inventory row",
+        price: 49,
+        stock: 3,
+        unit: "pc",
+        barcode: "SKU-2",
+        categoryId: 4,
+        category: { id: 4, name: "Snacks" },
+        createdAt: new Date("2026-05-20T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-20T11:00:00.000Z"),
+        inventoryItem: null
+      },
+      {
+        id: 3,
+        name: "Inactive inventory item",
+        price: 79,
+        stock: 1,
+        unit: "pc",
+        barcode: "SKU-3",
+        categoryId: 5,
+        category: { id: 5, name: "Beverages" },
+        createdAt: new Date("2026-05-20T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-20T12:00:00.000Z"),
+        inventoryItem: {
+          productId: 3,
+          onHandQty: 1,
+          reservedQty: 0,
+          availableQty: 1,
+          reorderPoint: 5,
+          reorderQty: 8,
+          safetyStockQty: 1,
+          isActive: false,
+          createdAt: new Date("2026-05-20T09:00:00.000Z"),
+          updatedAt: new Date("2026-05-20T12:00:00.000Z"),
+          batches: []
+        }
+      }
+    ]);
+
+    const service = new InventoryService();
+    const result = await service.getInventoryAlerts();
+
+    expect(productFindManyMock).toHaveBeenCalled();
+    expect(result.lowStock).toHaveLength(2);
+    expect(result.lowStock.map((item) => item.productId)).toEqual([2, 1]);
+    expect(result.lowStock[0]).toEqual(
+      expect.objectContaining({
+        productId: 2,
+        availableQty: 3,
+        lowStockThreshold: 5,
+        isLowStock: true
+      })
+    );
+    expect(result.lowStock[1]).toEqual(
+      expect.objectContaining({
+        productId: 1,
+        availableQty: 4,
+        lowStockThreshold: 5,
+        isLowStock: true
+      })
+    );
   });
 
   it("schedules a delayed reservation-expiry job when the queue is available", async () => {

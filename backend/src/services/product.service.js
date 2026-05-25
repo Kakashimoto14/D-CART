@@ -8,6 +8,7 @@ const inventoryService = new InventoryService();
 
 export class ProductService {
   mapProduct(record) {
+    const lowStockThreshold = record.inventoryItem?.reorderPoint ?? 5;
     const mapped = new Product({
       ...record,
       stock: record.inventoryItem?.availableQty ?? record.stock
@@ -15,11 +16,14 @@ export class ProductService {
 
     return {
       ...mapped,
+      lowStockThreshold,
+      reorderPoint: lowStockThreshold,
       inventory: record.inventoryItem
         ? {
             onHandQty: record.inventoryItem.onHandQty,
             reservedQty: record.inventoryItem.reservedQty,
             availableQty: record.inventoryItem.availableQty,
+            lowStockThreshold,
             reorderPoint: record.inventoryItem.reorderPoint,
             reorderQty: record.inventoryItem.reorderQty,
             safetyStockQty: record.inventoryItem.safetyStockQty,
@@ -186,14 +190,17 @@ export class ProductService {
       });
 
       if (
+        payload.lowStockThreshold != null ||
         payload.reorderPoint != null ||
         payload.reorderQty != null ||
         payload.safetyStockQty != null
       ) {
+        const lowStockThreshold = payload.lowStockThreshold ?? payload.reorderPoint;
         await tx.inventoryItem.update({
           where: { productId },
           data: {
-            reorderPoint: payload.reorderPoint ?? product.inventoryItem?.reorderPoint ?? 0,
+            reorderPoint:
+              lowStockThreshold ?? product.inventoryItem?.reorderPoint ?? 5,
             reorderQty: payload.reorderQty ?? product.inventoryItem?.reorderQty ?? 0,
             safetyStockQty:
               payload.safetyStockQty ?? product.inventoryItem?.safetyStockQty ?? 0

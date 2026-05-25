@@ -21,6 +21,7 @@ const initialForm = {
   image: "",
   price: "",
   stock: "",
+  lowStockThreshold: "5",
   unit: "pc",
   barcode: "",
   categoryId: ""
@@ -330,6 +331,7 @@ export function AdminProductsPage() {
       image: productForm.image || null,
       price: Number(productForm.price),
       stock: Number(productForm.stock),
+      lowStockThreshold: Number(productForm.lowStockThreshold),
       unit: productForm.unit || "pc",
       barcode: productForm.barcode || null,
       categoryId: Number(productForm.categoryId)
@@ -425,6 +427,7 @@ export function AdminProductsPage() {
                       <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
                         <span>Price: {currency(product.price)} / {product.unit || "pc"}</span>
                         <span>Stock: {product.stock}</span>
+                        <span>Low stock threshold: {product.lowStockThreshold ?? 5}</span>
                         {product.barcode ? <span>Barcode: {product.barcode}</span> : null}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-3">
@@ -439,6 +442,7 @@ export function AdminProductsPage() {
                               image: product.image || "",
                               price: String(product.price),
                               stock: String(product.stock),
+                              lowStockThreshold: String(product.lowStockThreshold ?? 5),
                               unit: product.unit || "pc",
                               barcode: product.barcode || "",
                               categoryId: String(product.categoryId || "")
@@ -502,6 +506,18 @@ export function AdminProductsPage() {
                   placeholder="Initial stock"
                   value={productForm.stock}
                   onChange={(event) => setProductForm((current) => ({ ...current, stock: event.target.value }))}
+                  required
+                />
+                <input
+                  className="field"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Low Stock Threshold"
+                  value={productForm.lowStockThreshold}
+                  onChange={(event) =>
+                    setProductForm((current) => ({ ...current, lowStockThreshold: event.target.value }))
+                  }
                   required
                 />
                 <input

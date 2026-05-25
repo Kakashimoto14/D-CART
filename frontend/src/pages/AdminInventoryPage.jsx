@@ -188,14 +188,14 @@ export function AdminInventoryPage() {
                         <div className="mt-3 grid gap-3 text-sm text-slate-500 sm:grid-cols-2 xl:grid-cols-4">
                           <span>Available: {item.availableQty}</span>
                           <span>Reserved: {item.reservedQty}</span>
-                          <span>Reorder point: {item.reorderPoint}</span>
+                          <span>Low stock threshold: {item.lowStockThreshold}</span>
                           <span>Barcode: {item.product?.barcode || "N/A"}</span>
                         </div>
                         <div className="mt-4 space-y-3">
                           <HealthMeter
                             label="Sellable stock"
                             value={item.availableQty}
-                            total={Math.max(item.availableQty + item.reservedQty, item.reorderPoint || 1)}
+                            total={Math.max(item.availableQty + item.reservedQty, item.lowStockThreshold || 1)}
                             tone={tone}
                           />
                           {nextBatch ? (
@@ -289,7 +289,7 @@ export function AdminInventoryPage() {
                     <div key={item.productId} className="rounded-2xl bg-white p-4">
                       <p className="font-semibold text-slate-900">{item.product?.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Available {item.availableQty} - Reorder point {item.reorderPoint}
+                        Available {item.availableQty} - Threshold {item.lowStockThreshold}
                       </p>
                     </div>
                   ))}

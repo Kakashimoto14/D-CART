@@ -25,6 +25,7 @@ export const receiveStockSchema = z.object({
   expiresAt: z.string().datetime().optional().nullable(),
   unitCost: z.number().nonnegative().optional().nullable(),
   batchCode: z.string().min(3).max(100).optional(),
+  lowStockThreshold: z.number().int().nonnegative().optional(),
   reorderPoint: z.number().int().nonnegative().optional(),
   reorderQty: z.number().int().nonnegative().optional(),
   safetyStockQty: z.number().int().nonnegative().optional(),

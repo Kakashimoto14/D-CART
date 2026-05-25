@@ -146,26 +146,9 @@ export class AdminService {
     const overdueActiveReservations = await overdueReservationsPromise;
     const notificationSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const inventoryItems = await prisma.inventoryItem.findMany({
-      include: {
-        batches: true
-      }
-    });
-
-    const now = new Date();
-    const nearExpiryLimit = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const lowStockAlerts = inventoryItems.filter(
-      (item) => item.availableQty <= item.reorderPoint
-    ).length;
-    const nearExpiryAlerts = inventoryItems.filter((item) =>
-      item.batches.some(
-        (batch) =>
-          batch.remainingQty > 0 &&
-          batch.expiresAt &&
-          new Date(batch.expiresAt) >= now &&
-          new Date(batch.expiresAt) <= nearExpiryLimit
-      )
-    ).length;
+    const inventoryAlerts = await inventoryService.getInventoryAlerts();
+    const lowStockAlerts = inventoryAlerts.lowStock.length;
+    const nearExpiryAlerts = inventoryAlerts.nearExpiry.length;
 
     const recentOrders = await prisma.order.findMany({
       include: {
@@ -710,7 +693,7 @@ export class AdminService {
         id: `low-stock-${item.productId}`,
         type: "LOW_STOCK",
         title: "Low stock",
-        message: `${item.product?.name || "A product"} is at or below its reorder point.`,
+        message: `Product is low on stock: ${item.product?.name || "Unnamed product"} - Current stock: ${item.availableQty}, Threshold: ${item.lowStockThreshold}`,
         status: "UNREAD",
         createdAt: item.updatedAt,
         metadata: { productId: item.productId }

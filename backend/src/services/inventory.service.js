@@ -9,10 +9,89 @@ import { AuditService } from "./audit.service.js";
 
 const DEFAULT_RESERVATION_MINUTES = Number(process.env.INVENTORY_RESERVATION_TTL_MINUTES || 15);
 const DEFAULT_NEAR_EXPIRY_DAYS = 7;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const auditService = new AuditService();
 const categorySummarySelect = { id: true, name: true };
 
 export class InventoryService {
+  resolveLowStockThreshold(value) {
+    const threshold = Number(value);
+    if (Number.isInteger(threshold) && threshold >= 0) {
+      return threshold;
+    }
+
+    return DEFAULT_LOW_STOCK_THRESHOLD;
+  }
+
+  buildBatches(batches = [], expiryDays = DEFAULT_NEAR_EXPIRY_DAYS) {
+    const now = new Date();
+    const nearExpiryThreshold = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
+
+    return batches.map((batch) => {
+      const expiresAt = batch.expiresAt ? new Date(batch.expiresAt) : null;
+      const isNearExpiry = Boolean(
+        expiresAt &&
+          expiresAt >= now &&
+          expiresAt <= nearExpiryThreshold &&
+          batch.remainingQty > 0 &&
+          batch.status !== "EXPIRED"
+      );
+
+      return {
+        id: batch.id,
+        batchCode: batch.batchCode,
+        supplier: batch.supplier,
+        receivedAt: batch.receivedAt,
+        expiresAt: batch.expiresAt,
+        unitCost: batch.unitCost != null ? Number(batch.unitCost) : null,
+        receivedQty: batch.receivedQty,
+        remainingQty: batch.remainingQty,
+        status: batch.status,
+        isNearExpiry
+      };
+    });
+  }
+
+  mapInventorySnapshot({
+    product,
+    inventoryItem,
+    expiryDays = DEFAULT_NEAR_EXPIRY_DAYS
+  }) {
+    const batches = this.buildBatches(inventoryItem?.batches || [], expiryDays);
+    const lowStockThreshold = this.resolveLowStockThreshold(inventoryItem?.reorderPoint);
+    const availableQty = inventoryItem?.availableQty ?? Math.max(0, Number(product?.stock) || 0);
+    const reservedQty = inventoryItem?.reservedQty ?? 0;
+    const onHandQty = inventoryItem?.onHandQty ?? availableQty + reservedQty;
+
+    return {
+      productId: product.id,
+      product: {
+        id: product.id,
+        name: product.name,
+        price: Number(product.price),
+        stock: availableQty,
+        unit: product.unit,
+        barcode: product.barcode,
+        categoryId: product.categoryId,
+        category: product.category || null,
+        lowStockThreshold,
+        reorderPoint: lowStockThreshold
+      },
+      onHandQty,
+      reservedQty,
+      availableQty,
+      lowStockThreshold,
+      reorderPoint: lowStockThreshold,
+      reorderQty: inventoryItem?.reorderQty ?? 0,
+      safetyStockQty: inventoryItem?.safetyStockQty ?? 0,
+      isActive: inventoryItem?.isActive ?? true,
+      isLowStock: availableQty <= lowStockThreshold,
+      batches,
+      createdAt: inventoryItem?.createdAt ?? product.createdAt,
+      updatedAt: inventoryItem?.updatedAt ?? product.updatedAt
+    };
+  }
+
   async enqueueReservationExpiry(reservationId, ttlMinutes) {
     if (!env.queueEnabled || !env.redisEnabled) {
       return;
@@ -60,59 +139,11 @@ export class InventoryService {
   }
 
   mapInventoryRecord(record, expiryDays = DEFAULT_NEAR_EXPIRY_DAYS) {
-    const now = new Date();
-    const nearExpiryThreshold = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
-
-    const batches = (record.batches || []).map((batch) => {
-      const expiresAt = batch.expiresAt ? new Date(batch.expiresAt) : null;
-      const isNearExpiry = Boolean(
-        expiresAt &&
-          expiresAt >= now &&
-          expiresAt <= nearExpiryThreshold &&
-          batch.remainingQty > 0 &&
-          batch.status !== "EXPIRED"
-      );
-
-      return {
-        id: batch.id,
-        batchCode: batch.batchCode,
-        supplier: batch.supplier,
-        receivedAt: batch.receivedAt,
-        expiresAt: batch.expiresAt,
-        unitCost: batch.unitCost != null ? Number(batch.unitCost) : null,
-        receivedQty: batch.receivedQty,
-        remainingQty: batch.remainingQty,
-        status: batch.status,
-        isNearExpiry
-      };
+    return this.mapInventorySnapshot({
+      product: record.product,
+      inventoryItem: record,
+      expiryDays
     });
-
-    return {
-      productId: record.productId,
-      product: record.product
-        ? {
-            id: record.product.id,
-            name: record.product.name,
-            price: Number(record.product.price),
-            stock: record.product.stock,
-            unit: record.product.unit,
-            barcode: record.product.barcode,
-            categoryId: record.product.categoryId,
-            category: record.product.category || null
-          }
-        : null,
-      onHandQty: record.onHandQty,
-      reservedQty: record.reservedQty,
-      availableQty: record.availableQty,
-      reorderPoint: record.reorderPoint,
-      reorderQty: record.reorderQty,
-      safetyStockQty: record.safetyStockQty,
-      isActive: record.isActive,
-      isLowStock: record.availableQty <= record.reorderPoint,
-      batches,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt
-    };
   }
 
   async ensureInventoryForProduct(productId, tx = prisma) {
@@ -141,7 +172,8 @@ export class InventoryService {
         productId: product.id,
         onHandQty: initialQty,
         reservedQty: 0,
-        availableQty: initialQty
+        availableQty: initialQty,
+        reorderPoint: DEFAULT_LOW_STOCK_THRESHOLD
       }
     });
 
@@ -174,7 +206,7 @@ export class InventoryService {
         onHandQty: startingQty,
         reservedQty: 0,
         availableQty: startingQty,
-        reorderPoint: Number(options.reorderPoint || 0),
+        reorderPoint: this.resolveLowStockThreshold(options.lowStockThreshold ?? options.reorderPoint),
         reorderQty: Number(options.reorderQty || 0),
         safetyStockQty: Number(options.safetyStockQty || 0)
       }
@@ -216,27 +248,31 @@ export class InventoryService {
   }
 
   async getInventoryItemByProductId(productId, { expiryDays = DEFAULT_NEAR_EXPIRY_DAYS } = {}, tx = prisma) {
-    const inventoryItem = await tx.inventoryItem.findUnique({
-      where: { productId },
+    const product = await tx.product.findUnique({
+      where: { id: productId },
       include: {
-        product: {
+        category: {
+          select: categorySummarySelect
+        },
+        inventoryItem: {
           include: {
-            category: {
-              select: categorySummarySelect
+            batches: {
+              orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
             }
           }
-        },
-        batches: {
-          orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
         }
       }
     });
 
-    if (!inventoryItem) {
-      throw new AppError("Inventory item not found.", 404);
+    if (!product) {
+      throw new AppError("Product not found.", 404);
     }
 
-    return this.mapInventoryRecord(inventoryItem, expiryDays);
+    return this.mapInventorySnapshot({
+      product,
+      inventoryItem: product.inventoryItem,
+      expiryDays
+    });
   }
 
   async listInventory({ page, limit, lowStockOnly = false, nearExpiryOnly = false, expiryDays = DEFAULT_NEAR_EXPIRY_DAYS } = {}) {
@@ -244,34 +280,31 @@ export class InventoryService {
     const perPage = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (currentPage - 1) * perPage;
 
-    const where = {};
-    if (lowStockOnly) {
-      where.isActive = true;
-    }
-
-    const [items, total] = await Promise.all([
-      prisma.inventoryItem.findMany({
-        where,
-        include: {
-          product: {
-            include: {
-              category: {
-                select: categorySummarySelect
-              }
-            }
-          },
-          batches: {
-            orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
-          }
+    const products = await prisma.product.findMany({
+      include: {
+        category: {
+          select: categorySummarySelect
         },
-        orderBy: [{ availableQty: "asc" }, { updatedAt: "desc" }],
-        skip,
-        take: perPage
-      }),
-      prisma.inventoryItem.count({ where })
-    ]);
+        inventoryItem: {
+          include: {
+            batches: {
+              orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
+            }
+          }
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
 
-    let mappedItems = items.map((item) => this.mapInventoryRecord(item, expiryDays));
+    let mappedItems = products
+      .map((product) =>
+        this.mapInventorySnapshot({
+          product,
+          inventoryItem: product.inventoryItem,
+          expiryDays
+        })
+      )
+      .filter((item) => item.isActive);
 
     if (lowStockOnly) {
       mappedItems = mappedItems.filter((item) => item.isLowStock);
@@ -281,8 +314,23 @@ export class InventoryService {
       mappedItems = mappedItems.filter((item) => item.batches.some((batch) => batch.isNearExpiry));
     }
 
+    mappedItems = mappedItems.sort((left, right) => {
+      if (left.isLowStock !== right.isLowStock) {
+        return left.isLowStock ? -1 : 1;
+      }
+
+      if (left.availableQty !== right.availableQty) {
+        return left.availableQty - right.availableQty;
+      }
+
+      return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    });
+
+    const total = mappedItems.length;
+    const pagedItems = mappedItems.slice(skip, skip + perPage);
+
     return {
-      inventory: mappedItems,
+      inventory: pagedItems,
       pagination: {
         page: currentPage,
         limit: perPage,
@@ -293,25 +341,35 @@ export class InventoryService {
   }
 
   async getInventoryAlerts({ expiryDays = DEFAULT_NEAR_EXPIRY_DAYS } = {}) {
-    const items = await prisma.inventoryItem.findMany({
+    const products = await prisma.product.findMany({
       include: {
-        product: {
+        category: {
+          select: categorySummarySelect
+        },
+        inventoryItem: {
           include: {
-            category: {
-              select: categorySummarySelect
+            batches: {
+              orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
             }
           }
-        },
-        batches: {
-          orderBy: [{ expiresAt: "asc" }, { receivedAt: "asc" }]
         }
       }
     });
 
-    const mapped = items.map((item) => this.mapInventoryRecord(item, expiryDays));
+    const mapped = products
+      .map((product) =>
+        this.mapInventorySnapshot({
+          product,
+          inventoryItem: product.inventoryItem,
+          expiryDays
+        })
+      )
+      .filter((item) => item.isActive);
 
     return {
-      lowStock: mapped.filter((item) => item.isLowStock),
+      lowStock: mapped
+        .filter((item) => item.isLowStock)
+        .sort((left, right) => left.availableQty - right.availableQty),
       nearExpiry: mapped.filter((item) => item.batches.some((batch) => batch.isNearExpiry))
     };
   }
@@ -827,7 +885,8 @@ export class InventoryService {
         data: {
           onHandQty: { increment: quantity },
           availableQty: { increment: quantity },
-          reorderPoint: payload.reorderPoint ?? inventoryItem.reorderPoint,
+          reorderPoint:
+            payload.lowStockThreshold ?? payload.reorderPoint ?? inventoryItem.reorderPoint,
           reorderQty: payload.reorderQty ?? inventoryItem.reorderQty,
           safetyStockQty: payload.safetyStockQty ?? inventoryItem.safetyStockQty
         }

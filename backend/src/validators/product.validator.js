@@ -25,6 +25,7 @@ export const createProductSchema = z.object({
   image: imageUrlSchema,
   price: z.number().positive(),
   stock: z.number().int().nonnegative(),
+  lowStockThreshold: z.number().int().nonnegative().optional(),
   unit: z.string().min(1).max(20).optional(),
   weight: z.number().positive().optional().nullable(),
   barcode: z.string().max(50).optional().nullable(),

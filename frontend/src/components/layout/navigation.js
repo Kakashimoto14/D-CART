@@ -29,7 +29,8 @@ export const adminNavigation = [
 
 export const staffNavigation = [
   { to: "/picker", label: "Fulfillment", icon: ClipboardList },
-  { to: "/products", label: "Catalog", icon: Package }
+  { to: "/categories", label: "Categories", icon: Boxes },
+  { to: "/picker/catalog", label: "Catalog", icon: Package }
 ];
 
 export const customerNavigation = [
@@ -96,10 +97,20 @@ export const routeTitles = {
     title: "Picker workflow",
     description: "Claim, pick, substitute, and update live delivery location."
   },
+  "/picker/catalog": {
+    eyebrow: "Fulfillment",
+    title: "Catalog reference",
+    description: "Read-only catalog visibility for picking, substitutions, and rider context."
+  },
   "/products": {
     eyebrow: "Storefront",
     title: "Fresh grocery essentials",
     description: "Browse, search, and add groceries to your cart without breaking your flow."
+  },
+  "/categories": {
+    eyebrow: "Catalog",
+    title: "Categories",
+    description: "Read-only category visibility for catalog, picking, and delivery context."
   },
   "/home": {
     eyebrow: "Storefront",
